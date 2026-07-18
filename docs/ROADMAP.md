@@ -1,6 +1,6 @@
 # Roadmap — Mappa Funghi
 
-Ordine di costruzione (spec §8). Stato al kickoff (18 lug 2026).
+Ordine di costruzione (spec §8). Stato: **MVP end-to-end** (18 lug 2026).
 
 ## v1 — subito, senza attesa di storico
 - [x] **Motore generico** + profili delle 6 specie (scoring §7.5): membership sfumate,
@@ -15,23 +15,23 @@ Ordine di costruzione (spec §8). Stato al kickoff (18 lug 2026).
       - [~] Suolo → soil_ph: due fonti. **SoilGrids** (`SoilProvider`) degrada (edulis +0.71→+0.62) → scartato (`--soil`).
             **CARG/substrato** (`GeologyProvider`, ArcGIS REST PAT) MIGLIORA (edulis +0.74→+0.80, cibarius +0.78→+0.88)
             anche col 25% di copertura → preferito (`--geology`). Da indurire: quaternario fallback, Veneto, bulk-download.
-      - [ ] Disturbo Sentinel-2 → canopy_alive (Peccete bellunesi) — CRITICO per edulis/pinophilus. **Ultimo layer statico.**
-      - [ ] Opzione futura: CFI2020 nazionale (MASAF) → legenda unica VE+TN al posto del patchwork.
-      - [ ] Validazione *dentro il Veneto* + background forestato + CV a blocchi spaziali (§6.3):
-            isola il contributo dell'host, oggi confuso dalla copertura parziale.
-- [ ] **Mappa a pin** con foto (Leaflet) dalle osservazioni + overlay idoneità statica.
+      - [x] **WorldCover** (`WorldCoverProvider`, `fetch_worldcover.py`): gate "è bosco?" completo → `forest_fraction` moltiplica l'idoneità (fuori-bosco = 0), senza bucare il TN.
+      - [x] **Disturbo Sentinel-2 → canopy_alive** (`canopy.py`, `fetch_canopy.py`, `CanopyProvider`): "chioma viva oggi" agnostico, tarato su Paneveggio.
+      - [x] **Mappa statica generata** (`make_map.py`, 500 m per specie, GeoTIFF + top-K GeoJSON).
+      - [~] CFI2020 (MASAF, **mail inviata**) → chiude l'host-sconosciuto TN. Validazione background forestato + CV a blocchi (§6.3): TODO.
+- [x] **Mappa a pin + overlay** — nella web app (`webapp/`), non più solo v1.
 
-## v2 — pipeline meteo (dopo il cold-start ~2–4 settimane)
-- [ ] Poller **ICON-D2** (via Open-Meteo per partire) su [VPS], storage cubi.
-      systemd timer + **gap-detector con alert** + poll ≥2×/giorno (una corsa persa = buco permanente).
-- [ ] Calcolo **feature** (§4): pioggia cumulata 7/15/30 gg, umidità/temperatura suolo,
-      shock termico (sul suolo), giorni-da-trigger, gradi-giorno.
-      → produce il dict che `engine.dynamic_scorer.readiness` già consuma.
+## v2 — pipeline meteo — FATTO
+- [x] Client **ICON-D2 via Open-Meteo** (`meteo.py`, no key; `past_days` bypassa il cold-start in dev)
+      + **poller + archivio SQLite** (`fetch_meteo.py`) + **gap-detector** (§9). Su VPS gira nel container `poller`.
+- [x] Calcolo **feature** (§4): pioggia cumulata sulla finestra, umidità/temperatura suolo,
+      **shock termico sul suolo** (§5), giorni-da-trigger → dict per `engine.dynamic_scorer.readiness`.
 
-## v3 — predizione combinata
-- [ ] Scorer dinamico in produzione + `predizione = statica × readiness` su tutte le celle/giorno.
-- [ ] Temperatura in quota (§5): lapse rate empirico locale, non gradiente fisso.
-- [ ] Ancoraggio pluviometrico opzionale (ARPAV/Meteotrentino) sui temporali convettivi.
+## v3 — predizione combinata — FATTO (base)
+- [x] `predizione = statica × readiness` → celle **"pronte oggi"** per specie (`predict_today.py`).
+      Verificato su dati reali (metà-luglio: estatino/finferlo sì, edulis no). Docker + deploy borant (`DEPLOY.md`).
+- [ ] (opz.) Temperatura in quota (lapse rate locale, §5); ancoraggio pluviometrico ARPAV/Meteotrentino.
+- [ ] **Notifiche via bot** (trigger: readiness che scatta) — active learning §6.3.
 
 ## v4 — apprendimento
 - [ ] **Learner statico**: presenza+zeri → pesi statici, update **grossolano** (sposta il profilo,
