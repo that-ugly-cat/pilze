@@ -2,7 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# rasterio/geopandas/pyproj arrivano da wheel con GDAL/PROJ/GEOS inclusi → no lib di sistema.
+# I wheel di rasterio/geopandas/pyproj includono GDAL/PROJ/GEOS ma linkano libexpat
+# di sistema, assente in slim → va installata (altrimenti "import rasterio" fallisce).
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
