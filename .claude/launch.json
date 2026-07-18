@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pilze-web",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--python", "3.12",
+        "--with", "fastapi", "--with", "uvicorn", "--with", "jinja2",
+        "--with", "python-multipart", "--with", "pillow", "--with", "matplotlib",
+        "--with", "rasterio", "--with", "numpy", "--with", "pyyaml",
+        "uvicorn", "webapp.app:app", "--host", "127.0.0.1", "--port", "8799"],
+      "port": 8799
+    }
+  ]
+}

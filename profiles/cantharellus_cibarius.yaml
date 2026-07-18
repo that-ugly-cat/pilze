@@ -1,0 +1,33 @@
+# Profilo specie — Cantharellus cibarius (finferlo, gallinaccio)
+# Priori esperti (spec §2). dynamic_triggers = prima passata da rivedere con Spit.
+# Ubiquitario e reattivo: segue i temporali estivi con notti fresche (<12 °C).
+species:
+  id: cantharellus_cibarius
+  common_name: finferlo
+  trophic_mode: mycorrhizal
+  similar_to: []                        # ubiquitario, nessun analogo stretto tra le sei
+
+  host_genera:            # ampio spettro (fasi: querce mag–giu → castagno → faggio autunno)
+    faggio: 0.9
+    querce: 0.8
+    castagno: 0.8
+    abete: 0.7            # abete rosso, abete bianco
+    pino: 0.6
+
+  static_envelope:
+    elevation_m: { min: 300, opt: [600, 1600], max: 2000 }
+    aspect: cool          # fresca/ombrosa (versanti N), ma ampio
+    slope_deg: { opt: [5, 30] }
+    soil_ph: acidic       # acido, ricco di humus
+    drainage: moist       # umido (declina verso il secco; gestito morbido dallo scorer)
+
+  extra_static_layers: []
+  phenology_months: [5, 6, 7, 8, 9, 10]  # primavera→autunno, picco estate–autunno
+
+  dynamic_triggers:      # PROVVISORI — da tarare. Reattivo: lag corto dopo i temporali.
+    rain_window_days: 10
+    cumulative_rain_mm: 30
+    thermal_shock_c: 4                  # notti fresche <12 °C
+    soil_temp_c: { min: 8, max: 20 }
+    lag_days: { opt: [5, 12] }
+    moisture_floor: 0.25               # esigente di umidità

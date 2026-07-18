@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze — admin</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body class="admin">
+  <div class="card wide">
+    <h1>🍄 Account</h1>
+    <p><a href="/">← mappa</a> · {{ user.username }} · <a href="/logout">esci</a></p>
+    <table>
+      <tr><th>utente</th><th>admin</th><th>creato</th><th></th></tr>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td><td>{{ "sì" if u.is_admin else "" }}</td><td>{{ u.created }}</td>
+        <td>{% if u.username != user.username %}
+          <form method="post" action="/admin/revoke" onsubmit="return confirm('Revocare {{ u.username }}?')">
+            <input type="hidden" name="username" value="{{ u.username }}">
+            <button class="danger">revoca</button>
+          </form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <h2>Nuovo account</h2>
+    <form method="post" action="/admin/create" class="row">
+      <input name="username" placeholder="utente" required>
+      <input name="password" type="password" placeholder="password" required>
+      <label><input type="checkbox" name="is_admin" value="true"> admin</label>
+      <button type="submit">Crea</button>
+    </form>
+  </div>
+</body></html>

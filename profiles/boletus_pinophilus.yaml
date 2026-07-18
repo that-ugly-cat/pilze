@@ -1,0 +1,32 @@
+# Profilo specie — Boletus pinophilus (porcino rosso)
+# Priori esperti (spec §2). dynamic_triggers = prima passata da rivedere con Spit.
+# Nota: favorito da shock termico (grandinate) → thermal_shock_c alto.
+species:
+  id: boletus_pinophilus
+  common_name: porcino rosso
+  trophic_mode: mycorrhizal
+  similar_to: [boletus_edulis]
+
+  host_genera:
+    pino: 1.0            # pino silvestre; in Triveneto anche pino cembro
+    abete: 0.9           # abete rosso, abete bianco
+    faggio: 0.6
+    castagno: 0.4
+
+  static_envelope:
+    elevation_m: { min: 1000, opt: [1200, 1800], max: 2000 }
+    aspect: cool         # fresca, ombrosa
+    slope_deg: { opt: [10, 35] }        # zone ripide, con mirtillo
+    soil_ph: acidic      # siliceo/acido
+    drainage: well_drained
+
+  extra_static_layers: []
+  phenology_months: [4, 5, 6, 9, 10]   # primavera + autunno (multi-finestra); montano fresco anche estate
+
+  dynamic_triggers:      # PROVVISORI — da tarare
+    rain_window_days: 12
+    cumulative_rain_mm: 40
+    thermal_shock_c: 6                  # sensibile allo shock (grandinate)
+    soil_temp_c: { min: 7, max: 16 }
+    lag_days: { opt: [12, 20] }
+    moisture_floor: 0.22

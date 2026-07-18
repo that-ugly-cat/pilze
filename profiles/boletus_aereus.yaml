@@ -1,0 +1,32 @@
+# Profilo specie — Boletus aereus (porcino nero)
+# Priori ESPERTI. Valori statici da spec §2 (tabella ecologia, verificata su fonti
+# micologiche). I dynamic_triggers seguono l'esempio spec §7.1. Il learner dinamico
+# li aggiusta nel tempo (§6.2). NON sono verità: sono il punto di partenza.
+species:
+  id: boletus_aereus
+  common_name: porcino nero
+  trophic_mode: mycorrhizal
+  similar_to: [boletus_aestivalis, amanita_caesarea]   # descrittivo (§7.1), solo per partial pooling futuro
+
+  host_genera:            # chiavi = classi del crosswalk (§3.3)
+    querce: 1.0           # roverella, cerro, farnia, leccio
+    castagno: 0.7
+    altro_latifoglie: 0.3 # carpino nero, cisto
+
+  static_envelope:
+    elevation_m: { min: 100, opt: [200, 600], max: 800 }
+    aspect: warm          # S/SO, assolata
+    slope_deg: { opt: [5, 25] }
+    soil_ph: acidic       # pH 4–6, evita il calcareo spinto
+    drainage: well_drained
+
+  extra_static_layers: []
+  phenology_months: [6, 7, 8, 9, 10]   # tipico estate–autunno caldo
+
+  dynamic_triggers:
+    rain_window_days: 15
+    cumulative_rain_mm: 40
+    thermal_shock_c: 5
+    soil_temp_c: { min: 12, max: 22 }
+    lag_days: { opt: [10, 18] }
+    moisture_floor: 0.20

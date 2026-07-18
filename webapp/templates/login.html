@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze — accesso</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body class="login">
+  <form class="card" method="post" action="/login">
+    <h1>🍄 Pilze</h1>
+    {% if err %}<p class="err">{{ err }}</p>{% endif %}
+    <input name="username" placeholder="utente" autofocus required>
+    <input name="password" type="password" placeholder="password" required>
+    <button type="submit">Entra</button>
+  </form>
+</body></html>

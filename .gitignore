@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.db
+*.sqlite
+*.grib
+*.grib2
+.pytest_cache/
+
+# Dati: grezzi (DEM/forestale/geologia/worldcover/canopy) e DB restano LOCALI.
+# Versionate solo le mappe statiche di idoneità (piccole) → deploy via git clone.
+data/*
+!data/maps/
+data/maps/*
+!data/maps/idoneita_*.tif

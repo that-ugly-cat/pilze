@@ -1,0 +1,105 @@
+# Crosswalk forestale (spec §3.3) — legende regionali → composizione di generi ospite.
+#
+# Ogni categoria della carta forestale è mappata su una COMPOSIZIONE {genere: peso}
+# (i pesi ~ quota della categoria coperta da quel genere). Il motore calcola
+# l'appartenenza ospite come prodotto scalare fra questa composizione e gli host_genera
+# del profilo di specie (engine.static_scorer.host_membership).
+#
+# Classi target (chiuse):
+#   querce | castagno | faggio | abete | pino | altro_latifoglie | altro_conifere | non_forestale
+#
+# VENETO   (campo CATEGORIA): Carta Regionale dei Tipi Forestali, 18 categorie, EPSG:3003.
+# TRENTINO (campo tipo_fores): Tipi forestali - SIGFAT, 54 tipi, EPSG:25832; mappa generata
+#          da un classificatore a parole-chiave sui nomi (primario + "con X"), da rivedere.
+# Opzione futura (opzionale): CFI2020 nazionale (MASAF) → legenda UNICA per VE+TN.
+#
+# Nota (spec §2): larice NON è ospite dei porcini → mappato su altro_conifere (peso basso);
+# robinia/ontano non sono ospiti micorrizici → non_forestale / altro_latifoglie basso.
+
+target_classes:
+  - querce
+  - castagno
+  - faggio
+  - abete
+  - pino
+  - altro_latifoglie
+  - altro_conifere
+  - non_forestale
+
+# --- VENETO: campo CATEGORIA ---
+veneto:
+  Faggete:                                         { faggio: 1.0 }
+  Peccete:                                         { abete: 1.0 }        # anche bersaglio Vaia/bostrico
+  Abieteti:                                        { abete: 1.0 }        # abete bianco
+  Piceo-faggeti:                                   { abete: 0.5, faggio: 0.5 }
+  Pinete di pino silvestre:                        { pino: 1.0 }
+  Mughete:                                         { pino: 0.8, altro_conifere: 0.2 }   # pino mugo
+  Lariceti e larici-cembreti:                      { altro_conifere: 0.6, pino: 0.4 }   # larice (NON host) + cembro
+  Castagneti e rovereti:                           { castagno: 0.6, querce: 0.4 }
+  Querco-carpineti e carpineti:                    { querce: 0.6, altro_latifoglie: 0.4 }  # carpino
+  Orno-ostrieti e ostrio-querceti:                 { querce: 0.4, altro_latifoglie: 0.6 }  # orniello/carpino nero
+  Formazioni euganee con elementi mediterranei:    { querce: 0.6, altro_latifoglie: 0.4 }  # leccio/roverella
+  Aceri-frassineti e aceri-tiglieti:               { altro_latifoglie: 1.0 }
+  Betuleti:                                        { altro_latifoglie: 1.0 }
+  Saliceti e altre formazioni riparie:             { altro_latifoglie: 0.3 }
+  Alnete:                                          { altro_latifoglie: 0.3 }
+  Formazioni costiere:                             { pino: 0.3 }
+  Arbusteti:                                       { non_forestale: 1.0 }
+  Formazioni antropogene:                          { non_forestale: 1.0 }
+
+# --- TRENTINO: campo tipo_fores (generato da classificatore, da rivedere) ---
+trentino:
+  "abieteto calcicolo con faggio":              { abete: 0.7, faggio: 0.3 }
+  "abieteto dei suoli fertili":                 { abete: 1.0 }
+  "abieteto silicicolo dei suoli acidi":        { abete: 1.0 }
+  "aceri-frassineto":                           { altro_latifoglie: 1.0 }
+  "aceri-frassineto con ontano":                { altro_latifoglie: 1.0 }
+  "aceri-tiglieto":                             { altro_latifoglie: 1.0 }
+  "castagneto":                                 { castagno: 1.0 }
+  "castagneto-robinieto":                       { castagno: 0.5, non_forestale: 0.5 }
+  "cembreta con ontano verde":                  { pino: 0.7, altro_latifoglie: 0.3 }
+  "cembreta tipica a rododendro":               { pino: 1.0 }
+  "cembreta xerica a ginepro":                  { pino: 1.0 }
+  "faggeta altimontana":                        { faggio: 1.0 }
+  "faggeta con carpino nero":                   { faggio: 0.7, altro_latifoglie: 0.3 }
+  "faggeta con tasso o agrifoglio":             { faggio: 0.7, altro_latifoglie: 0.3 }
+  "faggeta mesalpica con conifere":             { faggio: 0.7, abete: 0.3 }
+  "faggeta silicicola a luzula o graminacee":   { faggio: 1.0 }
+  "faggeta tipica a dentarie":                  { faggio: 1.0 }
+  "formazioni transitorie":                     {}   # non mappato -> host ignoto
+  "lariceto con ontano verde":                  { altro_conifere: 0.7, altro_latifoglie: 0.3 }
+  "lariceto secondario o sostitutivo":          { altro_conifere: 1.0 }
+  "lariceto tipico a rododendro":               { altro_conifere: 1.0 }
+  "lariceto xerico a ginepro":                  { altro_conifere: 1.0 }
+  "larici-cembreta con ontano verde":           { altro_conifere: 0.35, pino: 0.35, altro_latifoglie: 0.3 }
+  "larici-cembreta tipica a rododendro":        { altro_conifere: 0.5, pino: 0.5 }
+  "larici-cembreta xerica a ginepro":           { altro_conifere: 0.5, pino: 0.5 }
+  "lecceta con carpino nero":                   { querce: 0.7, altro_latifoglie: 0.3 }
+  "lecceta xerica a terebinto":                 { querce: 1.0 }
+  "mugheta a erica":                            { pino: 0.8, altro_conifere: 0.2 }
+  "mugheta a rododendri":                       { pino: 0.8, altro_conifere: 0.2 }
+  "mugheta a rododendro ferrugineo":            { pino: 0.8, altro_conifere: 0.2 }
+  "mugheta acidofila di invasione su pascolo":  { pino: 0.8, altro_conifere: 0.2 }
+  "ontaneta di ontano bianco":                  { altro_latifoglie: 0.3 }
+  "ontaneta di ontano nero":                    { altro_latifoglie: 0.3 }
+  "ontaneta di ontano verde":                   { altro_latifoglie: 0.3 }
+  "orno-ostrieto primitivo":                    { altro_latifoglie: 1.0 }
+  "orno-ostrieto tipico":                       { altro_latifoglie: 1.0 }
+  "ostrio-querceto":                            { altro_latifoglie: 0.5, querce: 0.5 }
+  "pecceta a erica con pino silvestre":         { abete: 0.7, pino: 0.3 }
+  "pecceta a megaforbie con ontano verde":      { abete: 0.7, altro_latifoglie: 0.3 }
+  "pecceta altimontana tipica":                 { abete: 1.0 }
+  "pecceta altimontana xerica":                 { abete: 1.0 }
+  "pecceta igrofila a sfagni o molinia":        { abete: 1.0 }
+  "pecceta secondaria o sostitutiva":           { abete: 1.0 }
+  "pecceta subalpina":                          { abete: 1.0 }
+  "pineta con faggio o specie nobili":          { pino: 0.7, faggio: 0.3 }
+  "pineta con orniello":                        { pino: 0.7, altro_latifoglie: 0.3 }
+  "pineta di pino nero":                        { pino: 1.0 }
+  "pineta igrofila":                            { pino: 1.0 }
+  "pineta pioniera":                            { pino: 1.0 }
+  "pineta tipica con abete rosso":              { pino: 0.7, abete: 0.3 }
+  "pineta xerica endalpica":                    { pino: 1.0 }
+  "querceto di rovere (o cerro)":               { querce: 1.0 }
+  "querco-carpineto":                           { querce: 0.6, altro_latifoglie: 0.4 }
+  "robinieto":                                  { non_forestale: 1.0 }

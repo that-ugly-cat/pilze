@@ -1,0 +1,31 @@
+# Profilo specie — Amanita caesarea (ovolo)
+# Priori esperti (spec §2). dynamic_triggers = prima passata da rivedere con Spit.
+species:
+  id: amanita_caesarea
+  common_name: ovolo
+  trophic_mode: mycorrhizal
+  similar_to: [boletus_aereus]         # condivide la nicchia termofila
+
+  host_genera:
+    castagno: 1.0        # preferito
+    querce: 0.7          # querce termofile
+    altro_latifoglie: 0.4 # carpino, nocciolo, orniello
+    # NB: NON faggio (spec §2) — assente dal profilo host
+
+  static_envelope:
+    elevation_m: { min: 200, opt: [300, 700], max: 900 }   # al nord ~700–800; max ~1000
+    aspect: warm         # radure assolate e ventilate
+    slope_deg: { opt: [3, 25] }
+    soil_ph: tolerant    # acido e carbonatico, meglio siliceo
+    drainage: well_drained
+
+  extra_static_layers: []
+  phenology_months: [7, 8, 9]          # estate, picco agosto (NON autunnale)
+
+  dynamic_triggers:      # PROVVISORI — da tarare
+    rain_window_days: 12
+    cumulative_rain_mm: 35
+    thermal_shock_c: 4
+    soil_temp_c: { min: 15, max: 26 }  # termofila
+    lag_days: { opt: [10, 16] }
+    moisture_floor: 0.18

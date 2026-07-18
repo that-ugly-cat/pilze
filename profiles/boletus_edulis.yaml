@@ -1,0 +1,32 @@
+# Profilo specie — Boletus edulis (porcino)
+# Priori esperti (spec §2). dynamic_triggers = prima passata da rivedere con Spit.
+species:
+  id: boletus_edulis
+  common_name: porcino
+  trophic_mode: mycorrhizal
+  similar_to: [boletus_pinophilus, boletus_aestivalis]
+
+  host_genera:
+    abete: 1.0           # abete rosso (classico delle peccete); anche abete bianco
+    faggio: 0.9
+    castagno: 0.7
+    querce: 0.4
+    # MAI larice (spec §2) — non è una classe host qui
+
+  static_envelope:
+    elevation_m: { min: 500, opt: [800, 1600], max: 2000 }
+    aspect: cool         # fresca; anche assolata in quota
+    slope_deg: { opt: [5, 30] }
+    soil_ph: acidic      # pH 4–6, humus, non troppo sassoso
+    drainage: well_drained
+
+  extra_static_layers: []
+  phenology_months: [8, 9, 10, 11]     # fine estate in quota → autunno a quote basse
+
+  dynamic_triggers:      # PROVVISORI — da tarare
+    rain_window_days: 15
+    cumulative_rain_mm: 45
+    thermal_shock_c: 5
+    soil_temp_c: { min: 8, max: 18 }
+    lag_days: { opt: [10, 20] }
+    moisture_floor: 0.22

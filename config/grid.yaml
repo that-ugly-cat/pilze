@@ -1,0 +1,23 @@
+# Griglia comune (spec §9). Tutti i layer si riportano qui a monte.
+# La maglia meteo ICON-D2 (~2.2 km) è la più grossolana e detta la maglia dinamica;
+# i layer statici (molto più fini) si campionano per punto candidato e si associano
+# alla cella meteo che li contiene (doppio cell_id nelle osservazioni, spec §6.1).
+
+# CRS metrico unico per Veneto + Trentino. ETRS89 / UTM 32N (EPSG:32632) copre
+# entrambe le regioni ed è metrico → distanze/aree corrette.
+crs: "EPSG:32632"
+
+# Passo della griglia statica fine, in metri (campionamento layer statici).
+static_step_m: 100
+
+# Passo nominale della maglia meteo (ICON-D2 ~2.2 km). Le celle meteo reali
+# vengono dalla griglia nativa del modello / da Open-Meteo per punto.
+meteo_step_m: 2200
+
+# Bounding box area di interesse (Veneto + Trentino), in gradi WGS84 (EPSG:4326).
+# Da rifinire; il margine sud della bassa pianura veneta è fuori habitat (spec §3.2).
+bbox_wgs84:
+  lon_min: 10.4
+  lat_min: 45.2
+  lon_max: 12.6
+  lat_max: 47.1

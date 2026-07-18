@@ -1,0 +1,30 @@
+# Pilze su borant — web + bot + poller, una sola immagine, dati come volume.
+# Caddy (host) fa da reverse proxy HTTPS verso 127.0.0.1:8790 → pilze.borant.eu.
+
+x-pilze: &pilze
+  build: .
+  image: pilze:latest
+  restart: unless-stopped
+  env_file: .env
+  volumes:
+    - ./data:/app/data          # mappe (versionate) + DB osservazioni/meteo/utenti + foto
+
+services:
+  web:
+    <<: *pilze
+    ports:
+      - "127.0.0.1:8790:8000"    # porta host 8790 (registro porte borant) → Caddy
+
+  bot:
+    <<: *pilze
+    command: python -m bot.bot
+
+  poller:
+    <<: *pilze
+    # ICON-D2 archivia in avanti (§9): fetch giornaliero + ricalcolo "pronte oggi".
+    command: >
+      sh -c 'while true; do
+        python -m gis.fetch_meteo --daily boletus_edulis boletus_aestivalis boletus_pinophilus cantharellus_cibarius amanita_caesarea boletus_aereus || true;
+        python -m gis.predict_today boletus_edulis boletus_aestivalis boletus_pinophilus cantharellus_cibarius amanita_caesarea boletus_aereus || true;
+        sleep 86400;
+      done'

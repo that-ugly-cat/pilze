@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+  <div id="panel">
+    <h1>🍄 Pilze</h1>
+    <label>Specie
+      <select id="species">
+        {% for s in species %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <fieldset>
+      <label><input type="checkbox" id="l-static" checked> Idoneità statica</label>
+      <label><input type="checkbox" id="l-pronte"> Pronte oggi</label>
+      <label><input type="checkbox" id="l-pins" checked> Ritrovamenti</label>
+    </fieldset>
+    <div id="status"></div>
+    <div class="spacer"></div>
+    <div class="foot">
+      {{ user.username }}{% if user.is_admin %} · <a href="/admin">admin</a>{% endif %} · <a href="/logout">esci</a>
+    </div>
+  </div>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/map.js"></script>
+</body></html>
