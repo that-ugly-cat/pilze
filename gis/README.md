@@ -12,8 +12,13 @@ cell = {
 }
 ```
 
-Il **motore e lo scoring sono già scritti e testati** (feature sintetiche). Manca
-l'acquisizione dei layer reali. Ordine di lavoro:
+> **Stato: layer acquisiti e integrati** (questo doc era il piano originale).
+> I provider reali sono in `providers.py` (DEM · Forest CFI2020 · WorldCover · Geology · Canopy),
+> gli acquisitori in `fetch_*.py`, la mappa in `make_map.py`. Sotto restano le fonti e le note
+> di merito per riferimento. **Forestale: la fonte primaria è ora la CFI2020 nazionale**
+> (`ForestProvider.cfi()`, campo Ct_CFI, VE+Trento+Bolzano) che sostituisce il patchwork regionale.
+
+Ordine di lavoro (storico):
 
 ## 1. Griglia comune (`config/grid.yaml`) — PRIMA di tutto
 CRS `EPSG:32632` (UTM 32N, metrico, copre VE+TN), passo statico 100 m, maglia meteo 2.2 km.
@@ -25,9 +30,10 @@ Tutti i layer si riproiettano qui.
 - Riduci l'esposizione a classe di calore `warm|cool|neutral` (S/SO=warm, N/NE=cool).
 
 ## 3. Copertura / specie arboree ospiti (il layer che più discrimina, §3.1)
-- **Veneto:** Carta Regionale Categorie Forestali (shapefile per provincia).
-- **Trentino:** Tipi forestali del Trentino (Odasso) + Carta uso del suolo (CORINE).
-- Applica il **crosswalk** (`config/crosswalk.yaml`) → `genere_ospite_comune`. **Da riempire.**
+- **Fonte primaria (attuale): CFI2020 nazionale** (MASAF) — legenda genere unica (campo `Ct_CFI`,
+  categorie INFC) per VE+Trento+Bolzano; copre 84% del bosco TN. `ForestProvider.cfi()`, crosswalk `cfi:`.
+- Fallback/storico: Veneto = Carta Regionale Tipi Forestali; Trentino = SIGFAT (copre solo ~39%).
+- Gate "è bosco?" separato e completo: **WorldCover** (`WorldCoverProvider`), non i dati genere parziali.
 
 ## 4. Disturbo Vaia + bostrico → `canopy_alive` (CRITICO per edulis/pinophilus, §3.1)
 - Meglio di una maschera statica: **NDVI/NBR da Sentinel-2** aggiornato periodicamente.
