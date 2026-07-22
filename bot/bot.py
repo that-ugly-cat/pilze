@@ -126,7 +126,7 @@ async def f_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     loc = update.message.location
     ctx.user_data["obs"]["lat"] = loc.latitude
     ctx.user_data["obs"]["lon"] = loc.longitude
-    await update.message.reply_text("Fase?", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("📍 Posizione ok.", reply_markup=ReplyKeyboardRemove())
     await update.message.reply_text("Maturità:", reply_markup=_choice_keyboard("ph", PHASES))
     return F_PHASE
 
@@ -190,7 +190,7 @@ async def vuoto(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def b_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     loc = update.message.location
     ctx.user_data["obs"].update({"lat": loc.latitude, "lon": loc.longitude})
-    await update.message.reply_text("Da quanti minuti giravi? (numero)",
+    await update.message.reply_text("📍 Posizione ok. Da quanti minuti giravi? (numero)",
                                     reply_markup=ReplyKeyboardRemove())
     return B_EFFORT
 
@@ -224,7 +224,7 @@ async def t_species(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def t_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     loc = update.message.location
     ctx.user_data["obs"].update({"lat": loc.latitude, "lon": loc.longitude})
-    await update.message.reply_text("Da quanti minuti giravi? (numero)",
+    await update.message.reply_text("📍 Posizione ok. Da quanti minuti giravi? (numero)",
                                     reply_markup=ReplyKeyboardRemove())
     return T_EFFORT
 
@@ -250,6 +250,17 @@ async def annulla(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     ctx.user_data.pop("obs", None)
     await update.message.reply_text("Annullato.", reply_markup=MAIN_KB)
     return ConversationHandler.END
+
+
+async def unknown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Messaggio non gestito → feedback, mai silenzio."""
+    if ctx.user_data.get("obs") is not None:      # raccolta in corso, input non atteso per lo step
+        await update.message.reply_text("Segui i bottoni qui sopra per continuare (o /annulla).")
+        return
+    hint = "📍 posizione ricevuta, ma " if (update.message and update.message.location) else ""
+    await update.message.reply_text(
+        f"{hint}non ho una raccolta in corso. Tocca 🍄 Trovato / 🚫 Vuoto / 🎯 Mirato (o /start).",
+        reply_markup=MAIN_KB)
 
 
 def build_application(token: str) -> Application:
@@ -292,6 +303,7 @@ def build_application(token: str) -> Application:
         },
         fallbacks=fallbacks,
     ))
+    app.add_handler(MessageHandler(~filters.COMMAND, unknown))   # ultimo: mai silenzio
     return app
 
 
