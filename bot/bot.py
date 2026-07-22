@@ -79,6 +79,13 @@ _LOCATION_KB = ReplyKeyboardMarkup(
     resize_keyboard=True, one_time_keyboard=True,
 )
 
+# tastiera principale persistente (al posto degli slash)
+BTN_TROVATO, BTN_VUOTO, BTN_MIRATO = "🍄 Trovato", "🚫 Vuoto", "🎯 Mirato"
+MAIN_KB = ReplyKeyboardMarkup(
+    [[KeyboardButton(BTN_TROVATO)], [KeyboardButton(BTN_VUOTO), KeyboardButton(BTN_MIRATO)]],
+    resize_keyboard=True,
+)
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -87,12 +94,12 @@ def _now_iso() -> str:
 # --------------------------------------------------------------------------- #
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "🍄 *Mappa Funghi*\n\n"
-        "/trovato — ho trovato qualcosa\n"
-        "/vuoto — uscita a vuoto\n"
-        "/mirato — cercavo una specie e non c'era\n"
-        "/annulla — annulla",
-        parse_mode="Markdown",
+        "🍄 *Pilze*\n\nUsa i bottoni qui sotto:\n"
+        f"{BTN_TROVATO} — ho trovato qualcosa\n"
+        f"{BTN_VUOTO} — uscita a vuoto\n"
+        f"{BTN_MIRATO} — cercavo una specie e non c'era\n"
+        "(/annulla per interrompere)",
+        parse_mode="Markdown", reply_markup=MAIN_KB,
     )
 
 
@@ -235,14 +242,13 @@ async def t_effort(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def _save_and_end(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     obs = ctx.user_data.pop("obs")
     obs_id = db.insert_observation(obs)
-    await update.message.reply_text(f"✅ Salvato (#{obs_id}). Grazie!",
-                                    reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text(f"✅ Salvato (#{obs_id}). Grazie!", reply_markup=MAIN_KB)
     return ConversationHandler.END
 
 
 async def annulla(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     ctx.user_data.pop("obs", None)
-    await update.message.reply_text("Annullato.", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("Annullato.", reply_markup=MAIN_KB)
     return ConversationHandler.END
 
 
@@ -254,7 +260,8 @@ def build_application(token: str) -> Application:
     fallbacks = [CommandHandler("annulla", annulla)]
 
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("trovato", trovato)],
+        entry_points=[CommandHandler("trovato", trovato),
+                      MessageHandler(filters.Regex(f"^{BTN_TROVATO}$"), trovato)],
         states={
             F_SPECIES: [CallbackQueryHandler(f_species, pattern=r"^f:")],
             F_LOCATION: [MessageHandler(filters.LOCATION, f_location)],
@@ -267,7 +274,8 @@ def build_application(token: str) -> Application:
         fallbacks=fallbacks,
     ))
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("vuoto", vuoto)],
+        entry_points=[CommandHandler("vuoto", vuoto),
+                      MessageHandler(filters.Regex(f"^{BTN_VUOTO}$"), vuoto)],
         states={
             B_LOCATION: [MessageHandler(filters.LOCATION, b_location)],
             B_EFFORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, b_effort)],
@@ -275,7 +283,8 @@ def build_application(token: str) -> Application:
         fallbacks=fallbacks,
     ))
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler("mirato", mirato)],
+        entry_points=[CommandHandler("mirato", mirato),
+                      MessageHandler(filters.Regex(f"^{BTN_MIRATO}$"), mirato)],
         states={
             T_SPECIES: [CallbackQueryHandler(t_species, pattern=r"^t:")],
             T_LOCATION: [MessageHandler(filters.LOCATION, t_location)],
