@@ -35,12 +35,16 @@ def build_provider(include_soil: bool = False,
       +0.71→+0.62). Tenuto solo per confronto.
     """
     providers, active = [DEMProvider()], ["DEM (quota/pendenza/esposizione)"]
-    for name, ctor in [("Veneto", ForestProvider.veneto), ("Trentino", ForestProvider.trentino)]:
-        try:
-            providers.append(ctor())
-            active.append(f"forestale/host ({name})")
-        except FileNotFoundError:
-            pass
+    try:                                          # CFI2020: forestale genere completo VE+TN+BZ
+        providers.append(ForestProvider.cfi())
+        active.append("forestale/host (CFI)")
+    except FileNotFoundError:                     # fallback al patchwork
+        for name, ctor in [("Veneto", ForestProvider.veneto), ("Trentino", ForestProvider.trentino)]:
+            try:
+                providers.append(ctor())
+                active.append(f"forestale/host ({name})")
+            except FileNotFoundError:
+                pass
     try:
         providers.append(WorldCoverProvider())    # gate "è bosco?" completo
         active.append("worldcover-gate")

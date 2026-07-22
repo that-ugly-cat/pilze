@@ -1,0 +1,4 @@
+# mappe/raster versionati: sempre binari (mai conversione CRLF)
+*.tif binary
+*.gpkg binary
+*.png binary

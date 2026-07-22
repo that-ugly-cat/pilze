@@ -103,3 +103,29 @@ trentino:
   "querceto di rovere (o cerro)":               { querce: 1.0 }
   "querco-carpineto":                           { querce: 0.6, altro_latifoglie: 0.4 }
   "robinieto":                                  { non_forestale: 1.0 }
+
+# --- CFI2020 nazionale (campo Ct_CFI): legenda UNICA per VE + Trento + Bolzano ---
+# Categorie forestali INFC (codici 2 lettere). Cross-check coi codici Ct_INFC:
+# PE+PF = INFC 2 (abete rosso) → abete; LC = INFC 1 (larice/cembro); FA = INFC 8; ecc.
+# Chiude l'host-sconosciuto trentino (SIGFAT copriva solo ~39% del bosco).
+cfi:
+  PE: { abete: 1.0 }                       # pecceta (abete rosso)
+  PF: { abete: 1.0 }                       # pecceta (INFC 2 abete rosso)
+  AB: { abete: 1.0 }                       # abetina (abete bianco)
+  LC: { altro_conifere: 0.6, pino: 0.4 }   # larici-cembreti: larice (NON host) + cembro
+  FA: { faggio: 1.0 }                      # faggeta
+  MU: { pino: 0.8, altro_conifere: 0.2 }   # mugheta (pino mugo)
+  PS: { pino: 1.0 }                        # pineta di pino silvestre
+  PN: { pino: 1.0 }                        # pineta di pino nero
+  CA: { castagno: 1.0 }                    # castagneto
+  QV: { querce: 1.0 }                      # querceti
+  QR: { querce: 1.0 }                      # querceti di rovere
+  QC: { querce: 0.6, altro_latifoglie: 0.4 }   # querco-carpineti
+  OS: { altro_latifoglie: 1.0 }            # orno-ostrieti
+  LE: { querce: 1.0 }                      # lecceta
+  AF: { altro_latifoglie: 1.0 }            # aceri-frassineti
+  FR: { altro_latifoglie: 0.5 }            # frassineti / formazioni riparie
+  AL: { altro_latifoglie: 0.3 }            # alnete (ontano, host debole)
+  AN: { altro_latifoglie: 0.3 }            # altre latifoglie / igrofile
+  LS: { querce: 0.5, altro_latifoglie: 0.5 }   # latifoglie sempreverdi (marginale)
+  AM: { altro_latifoglie: 1.0 }            # marginale (1 poligono)

@@ -127,6 +127,12 @@ class ForestProvider(FeatureProvider):
         return cls(FOREST_DIR / "trentino", "tipi_forestali_v.shp", "tipo_fores", "trentino",
                    crosswalk_path)
 
+    @classmethod
+    def cfi(cls, crosswalk_path: Path | str = CROSSWALK_PATH) -> "ForestProvider":
+        """CFI2020 nazionale — legenda UNICA (campo Ct_CFI) per VE + Trento + Bolzano.
+        Copertura completa del bosco → sostituisce il patchwork veneto()/trentino()."""
+        return cls(FOREST_DIR / "cfi", "**/*.shp", "Ct_CFI", "cfi", crosswalk_path)
+
     def features(self, lat: float, lon: float) -> dict | None:
         from shapely.geometry import Point
         pt = Point(lon, lat)

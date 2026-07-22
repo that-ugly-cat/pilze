@@ -35,11 +35,14 @@ CRS = "EPSG:32632"
 
 def build_provider():
     ps, active = [DEMProvider()], ["DEM"]
-    for name, ctor in [("VE", ForestProvider.veneto), ("TN", ForestProvider.trentino)]:
-        try:
-            ps.append(ctor()); active.append(f"forestale-{name}")
-        except FileNotFoundError:
-            pass
+    try:                                          # CFI2020: forestale genere completo VE+TN+BZ
+        ps.append(ForestProvider.cfi()); active.append("forestale-CFI")
+    except FileNotFoundError:                     # fallback al patchwork VE/TN
+        for name, ctor in [("VE", ForestProvider.veneto), ("TN", ForestProvider.trentino)]:
+            try:
+                ps.append(ctor()); active.append(f"forestale-{name}")
+            except FileNotFoundError:
+                pass
     try:
         ps.append(WorldCoverProvider()); active.append("worldcover-gate")
     except FileNotFoundError:
