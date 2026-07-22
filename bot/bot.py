@@ -47,10 +47,13 @@ log = logging.getLogger("mappa-funghi.bot")
 REGISTRY = load_profiles()
 
 # stati conversazione
-(F_SPECIES, F_LOCATION, F_PHASE, F_ABUNDANCE, F_WEIGHT, F_PHOTO,
- B_LOCATION, B_EFFORT, T_SPECIES, T_LOCATION, T_EFFORT) = range(11)
+(F_SPECIES, F_LOCATION, F_PHASE, F_OLDREASON, F_ABUNDANCE, F_WEIGHT, F_PHOTO,
+ B_LOCATION, B_EFFORT, T_SPECIES, T_LOCATION, T_EFFORT) = range(12)
 
 PHASES = [("primordi", "🌱 primordi"), ("buono", "👌 buono"), ("vecchio", "🍂 vecchio")]
+# perché "vecchio": senescente = buttata semplicemente tardi (limite superiore del lag);
+# abortito = condizioni girate (secco) → informa il moisture floor (spec §6.1).
+OLD_REASONS = [("senescente", "🍂 senescente (tardi)"), ("abortito", "🌵 abortito (secco)")]
 ABUNDANCE = [("uno", "1"), ("pochi", "pochi"), ("molti", "molti")]
 
 
@@ -104,8 +107,10 @@ async def trovato(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def f_species(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
-    ctx.user_data["obs"]["species"] = q.data.split(":", 1)[1]
-    await q.edit_message_text(f"Specie: {q.data.split(':',1)[1]}")
+    sid = q.data.split(":", 1)[1]
+    ctx.user_data["obs"]["species"] = sid
+    name = REGISTRY[sid].common_name if sid in REGISTRY else sid
+    await q.edit_message_text(f"Specie: {name}")
     await q.message.reply_text("Posizione? (usa il bottone)", reply_markup=_LOCATION_KB)
     return F_LOCATION
 
@@ -122,8 +127,21 @@ async def f_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def f_phase(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
-    ctx.user_data["obs"]["phase"] = q.data.split(":", 1)[1]
-    await q.edit_message_text(f"Fase: {ctx.user_data['obs']['phase']}")
+    phase = q.data.split(":", 1)[1]
+    ctx.user_data["obs"]["phase"] = phase
+    await q.edit_message_text(f"Fase: {phase}")
+    if phase == "vecchio":            # perché è vecchio → informa lag e moisture floor (§6.1)
+        await q.message.reply_text("Perché vecchio?", reply_markup=_choice_keyboard("or", OLD_REASONS))
+        return F_OLDREASON
+    await q.message.reply_text("Abbondanza:", reply_markup=_choice_keyboard("ab", ABUNDANCE))
+    return F_ABUNDANCE
+
+
+async def f_oldreason(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    ctx.user_data["obs"]["old_reason"] = q.data.split(":", 1)[1]
+    await q.edit_message_text(f"Vecchio: {ctx.user_data['obs']['old_reason']}")
     await q.message.reply_text("Abbondanza:", reply_markup=_choice_keyboard("ab", ABUNDANCE))
     return F_ABUNDANCE
 
@@ -241,6 +259,7 @@ def build_application(token: str) -> Application:
             F_SPECIES: [CallbackQueryHandler(f_species, pattern=r"^f:")],
             F_LOCATION: [MessageHandler(filters.LOCATION, f_location)],
             F_PHASE: [CallbackQueryHandler(f_phase, pattern=r"^ph:")],
+            F_OLDREASON: [CallbackQueryHandler(f_oldreason, pattern=r"^or:")],
             F_ABUNDANCE: [CallbackQueryHandler(f_abundance, pattern=r"^ab:")],
             F_WEIGHT: [MessageHandler(filters.TEXT | filters.COMMAND, f_weight)],
             F_PHOTO: [MessageHandler(filters.PHOTO | filters.COMMAND, f_photo)],
