@@ -19,7 +19,7 @@ config/       grid.yaml (griglia comune) · crosswalk.yaml (forestale + geologia
 engine/       motore species-agnostic: membership, static_scorer, dynamic_scorer, combiner
 gis/          layer + pipeline:
                 fetch_dem/forest/geology/soil/worldcover/canopy   acquisizione layer
-                providers.py   DEM · Forest(VE/TN) · WorldCover(gate) · Geology · Canopy
+                providers.py   DEM · Forest(CFI2020, VE+TN+BZ) · WorldCover(gate) · Geology · Canopy
                 occurrences.py (GBIF) · boyce.py · validate.py      validazione
                 grid.py · make_map.py                                mappa statica
                 meteo.py · fetch_meteo.py · predict_today.py         asse dinamico (meteo→pronte oggi)
@@ -31,14 +31,15 @@ Dockerfile · docker-compose.yml · DEPLOY.md
 
 ## Stato — MVP end-to-end
 - **Statico (DOVE):** mappa idoneità 6 specie a 500 m da dati reali — DEM (Copernicus) + forestale
-  VE+TN (host) + **WorldCover** (gate "è bosco?") + geologia CARG (soil_ph) + canopy Sentinel-2
-  (disturbo Vaia/bostrico). Validata (Boyce vs GBIF: edulis +0.71).
+  **CFI2020** (host genere completo VE+Trento+Bolzano; copre 84% del bosco TN) + **WorldCover** (gate
+  "è bosco?") + geologia CARG (soil_ph) + canopy Sentinel-2 (disturbo Vaia/bostrico). Validata (Boyce
+  vs GBIF: edulis +0.71).
 - **Dinamico (QUANDO):** meteo **ICON-D2 via Open-Meteo** → feature §4 → readiness; poller + archivio
   SQLite + gap-detector; **predizione combinata** → celle "pronte oggi" per specie.
 - **Cattura:** bot Telegram (ritrovamenti/zeri/foto). **Interfaccia:** web app (mappa topo, selezione
   specie, layer idoneità/pronte-oggi/pin). **Deploy:** Docker (web+bot+poller) → borant.
-- **Da fare:** notifiche via bot (trigger readiness); learner (v4); CFI2020 per chiudere l'host TN;
-  rifiniture (pesi/soglie, geologia nella mappa, tile canopy mancanti).
+- **Da fare:** notifiche via bot (trigger readiness); learner (v4); rifiniture (pesi/soglie,
+  geologia nella mappa, tile canopy mancanti).
 
 ## Uso
 ```bash

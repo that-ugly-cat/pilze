@@ -18,7 +18,9 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end** (18 lug 2026).
       - [x] **WorldCover** (`WorldCoverProvider`, `fetch_worldcover.py`): gate "è bosco?" completo → `forest_fraction` moltiplica l'idoneità (fuori-bosco = 0), senza bucare il TN.
       - [x] **Disturbo Sentinel-2 → canopy_alive** (`canopy.py`, `fetch_canopy.py`, `CanopyProvider`): "chioma viva oggi" agnostico, tarato su Paneveggio.
       - [x] **Mappa statica generata** (`make_map.py`, 500 m per specie, GeoTIFF + top-K GeoJSON).
-      - [~] CFI2020 (MASAF, **mail inviata**) → chiude l'host-sconosciuto TN. Validazione background forestato + CV a blocchi (§6.3): TODO.
+      - [x] **CFI2020** (MASAF, `ForestProvider.cfi()`, campo Ct_CFI): forestale genere **completo** VE+Trento+Bolzano
+            → sostituisce il patchwork VE/TN, chiude l'host-sconosciuto TN (copertura bosco **39%→84%**). Legenda unica.
+      - [ ] Validazione background forestato + CV a blocchi (§6.3): TODO.
 - [x] **Mappa a pin + overlay** — nella web app (`webapp/`), non più solo v1.
 
 ## v2 — pipeline meteo — FATTO
