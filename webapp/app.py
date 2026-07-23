@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from bot import db as obsdb
-from engine.profiles import load_profiles, species_buttons
+from engine.profiles import load_profiles
 
 from . import auth, render
 
@@ -91,7 +91,8 @@ def home(request: Request):
     u = _user(request)
     if not u:
         return RedirectResponse("/login", status_code=303)
-    species = [{"id": sid, "name": name} for sid, name in species_buttons(REG)]
+    species = [{"id": p.id, "common": p.common_name, "scientific": p.scientific_name}
+               for p in sorted(REG.values(), key=lambda p: p.common_name)]
     return templates.TemplateResponse(request, "map.html", {"user": u, "species": species})
 
 

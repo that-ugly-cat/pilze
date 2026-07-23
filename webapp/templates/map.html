@@ -9,7 +9,7 @@
     <h1>🍄 Pilze</h1>
     <label>Specie
       <select id="species">
-        {% for s in species %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        {% for s in species %}<option value="{{ s.id }}">{{ s.common|capitalize }} — {{ s.scientific }}</option>{% endfor %}
       </select>
     </label>
     <fieldset>

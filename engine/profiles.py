@@ -37,6 +37,11 @@ class SpeciesProfile:
     def is_mycorrhizal(self) -> bool:
         return self.trophic_mode == "mycorrhizal"
 
+    @property
+    def scientific_name(self) -> str:
+        """Binomio scientifico dall'id (es. boletus_edulis → Boletus edulis)."""
+        return self.id.replace("_", " ").capitalize()
+
     def validate(self) -> list[str]:
         """Ritorna la lista di problemi (vuota = ok). Non solleva: fail-soft."""
         errs: list[str] = []
