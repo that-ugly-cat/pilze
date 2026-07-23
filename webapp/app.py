@@ -116,6 +116,16 @@ def suitability_png(request: Request, species: str):
     return Response(png, media_type="image/png", headers={"X-Bounds": json.dumps(bounds)})
 
 
+@app.get("/api/suitability/{species}/grid")
+def suitability_grid(request: Request, species: str):
+    if not _guard(request):
+        return Response(status_code=401)
+    grid = render.suitability_grid(species)
+    if grid is None:
+        return Response(status_code=404)
+    return JSONResponse(grid)
+
+
 @app.get("/api/suitability/{species}/bounds")
 def suitability_bounds(request: Request, species: str):
     if not _guard(request):
