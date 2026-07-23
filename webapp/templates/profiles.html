@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze — profili</title>
+<link rel="stylesheet" href="{{ asset('style.css') }}">
+</head><body class="admin">
+  <div class="card wide">
+    <h1>🍄 Profili specie</h1>
+    <p><a href="/">← mappa</a> · <a href="/admin">account</a> · {{ user.username }} · <a href="/logout">esci</a></p>
+
+    <label>Profilo
+      <select id="pick">
+        {% for p in profiles %}<option value="{{ p.name }}">{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <textarea id="editor" spellcheck="false" rows="22"></textarea>
+    <div class="row">
+      <button id="save" type="button">Salva</button>
+      <span id="msg" class="hint"></span>
+    </div>
+    <p class="hint">Campi <b>statici</b> (host_genera, static_envelope, trophic_mode): dopo il
+      salvataggio <b>rigenera le mappe</b> qui sotto. I campi <b>dinamici</b>
+      (phenology_months, dynamic_triggers) li ricalcola il poller ogni 24 h;
+      <b>common_name</b> è solo visualizzazione.</p>
+
+    <hr>
+    <h2>Rigenerazione mappe statiche</h2>
+    <p class="hint">Ricalcola i raster idoneità dai layer grezzi. Gira in background a bassa
+      priorità (1 core); la mappa resta servita finché il job non finisce.</p>
+    <div class="row">
+      <button id="regen" type="button">Rigenera tutte</button>
+      <span id="regen-state" class="hint"></span>
+    </div>
+    <pre id="regen-log"></pre>
+  </div>
+
+  <script>
+    const profiles = {{ profiles|tojson }};
+    const byName = Object.fromEntries(profiles.map(p => [p.name, p.text]));
+    const pick = document.getElementById('pick'), editor = document.getElementById('editor');
+    const msg = document.getElementById('msg');
+    function load() { editor.value = byName[pick.value] || ''; msg.textContent = ''; msg.className = 'hint'; }
+    pick.addEventListener('change', load); load();
+
+    document.getElementById('save').addEventListener('click', async () => {
+      msg.textContent = 'salvo…'; msg.className = 'hint';
+      const body = new URLSearchParams({ name: pick.value, content: editor.value });
+      const j = await (await fetch('/admin/profiles/save', { method: 'POST', body })).json();
+      if (j.ok) { byName[pick.value] = editor.value; msg.textContent = '✓ salvato'; msg.className = 'ok'; }
+      else { msg.innerHTML = '✗ ' + (j.errors || ['errore']).join('<br>'); msg.className = 'bad'; }
+    });
+
+    let timer = null;
+    async function poll() {
+      const s = await (await fetch('/admin/regen/status')).json();
+      document.getElementById('regen-state').textContent =
+        s.state + (s.by ? ' · ' + s.by : '') + (s.started ? ' · ' + s.started : '')
+        + (s.returncode != null ? ' (rc ' + s.returncode + ')' : '');
+      document.getElementById('regen-log').textContent = s.tail || '';
+      document.getElementById('regen').disabled = !!s.running;
+      if (s.running && !timer) timer = setInterval(poll, 2000);
+      if (!s.running && timer) { clearInterval(timer); timer = null; }
+    }
+    document.getElementById('regen').addEventListener('click', async () => {
+      await fetch('/admin/regen', { method: 'POST', body: new URLSearchParams({ species: '' }) });
+      poll();
+    });
+    poll();
+  </script>
+</body></html>

@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import urllib.request
 from pathlib import Path
 
@@ -19,9 +20,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from bot import db as obsdb
-from engine.profiles import load_profiles
+from engine.profiles import (PROFILES_DIR, load_profiles, parse_profile_text,
+                             seed_profiles)
 
-from . import auth, render
+from . import auth, regen, render
 
 BASE = Path(__file__).resolve().parent
 MAPS_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
@@ -30,7 +32,14 @@ PHOTO_CACHE = Path(__file__).resolve().parent.parent / "data" / "photos"
 app = FastAPI(title="Pilze")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
+
+seed_profiles()          # popola il volume dai default se vuoto (primo avvio sul VPS)
 REG = load_profiles()
+
+
+def _reload_profiles():
+    global REG
+    REG = load_profiles()
 
 _ASSET_HASH: dict[str, str] = {}
 
@@ -120,6 +129,65 @@ def admin_revoke(request: Request, username: str = Form(...)):
     if u and u["is_admin"] and username != u["username"]:
         auth.revoke_user(username)
     return RedirectResponse("/admin", status_code=303)
+
+
+# --- editor profili + rigenerazione mappe (solo admin) ------------------- #
+_PROFILE_RE = re.compile(r"^[a-z0-9_]+\.yaml$")
+
+
+def _is_admin(request: Request):
+    u = _user(request)
+    return u if (u and u["is_admin"]) else None
+
+
+def _profiles_list():
+    return [{"name": f.name, "text": f.read_text(encoding="utf-8")}
+            for f in sorted(PROFILES_DIR.glob("*.yaml"))]
+
+
+@app.get("/admin/profiles", response_class=HTMLResponse)
+def profiles_page(request: Request):
+    u = _is_admin(request)
+    if not u:
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "profiles.html",
+                                      {"user": u, "profiles": _profiles_list()})
+
+
+@app.post("/admin/profiles/save")
+def profiles_save(request: Request, name: str = Form(...), content: str = Form(...)):
+    if not _is_admin(request):
+        return JSONResponse({"ok": False, "errors": ["non autorizzato"]}, status_code=403)
+    if not _PROFILE_RE.match(name) or not (PROFILES_DIR / name).exists():
+        return JSONResponse({"ok": False, "errors": [f"profilo sconosciuto: {name}"]}, status_code=400)
+    try:
+        prof = parse_profile_text(content)
+    except Exception as e:
+        return JSONResponse({"ok": False, "errors": [f"YAML non valido: {e}"]})
+    errs = prof.validate()
+    if prof.id != name[:-5]:
+        errs.append(f"id '{prof.id}' ≠ nome file '{name[:-5]}'")
+    if errs:
+        return JSONResponse({"ok": False, "errors": errs})
+    (PROFILES_DIR / name).write_text(content, encoding="utf-8")
+    _reload_profiles()
+    return JSONResponse({"ok": True})
+
+
+@app.post("/admin/regen")
+def admin_regen(request: Request, species: str = Form("")):
+    if not _is_admin(request):
+        return JSONResponse({"ok": False}, status_code=403)
+    only = [s.strip() for s in species.split(",") if s.strip()] or None
+    ok = regen.start(species=only, started_by=_user(request)["username"])
+    return JSONResponse({"ok": ok, "status": regen.status()})
+
+
+@app.get("/admin/regen/status")
+def admin_regen_status(request: Request):
+    if not _is_admin(request):
+        return JSONResponse({}, status_code=403)
+    return JSONResponse(regen.status())
 
 
 # --- API (tutte richiedono login) ---------------------------------------- #

@@ -6,8 +6,17 @@ x-pilze: &pilze
   image: pilze:latest
   restart: unless-stopped
   env_file: .env
+  environment:
+    # Profili VIVI nel volume dati (edit online = fonte di verità, fuori da git).
+    # Seed dai default baked al primo avvio (webapp) o dal poller (vedi sotto).
+    PILZE_PROFILES_DIR: /app/data/profiles
+    # make_map (rigenerazione) resta a 1 core: single-thread + niente thread GDAL/BLAS.
+    GDAL_NUM_THREADS: "1"
+    OMP_NUM_THREADS: "1"
+    OPENBLAS_NUM_THREADS: "1"
+    MKL_NUM_THREADS: "1"
   volumes:
-    - ./data:/app/data          # mappe (versionate) + DB osservazioni/meteo/utenti + foto
+    - ./data:/app/data          # mappe (versionate) + DB + foto + profiles/ (vivi)
 
 services:
   web:
@@ -23,7 +32,8 @@ services:
     <<: *pilze
     # ICON-D2 archivia in avanti (§9): fetch giornaliero + ricalcolo "pronte oggi".
     command: >
-      sh -c 'while true; do
+      sh -c 'python -c "from engine.profiles import seed_profiles; seed_profiles()" || true;
+        while true; do
         python -m gis.fetch_meteo --daily boletus_edulis boletus_aestivalis boletus_pinophilus cantharellus_cibarius amanita_caesarea boletus_aereus || true;
         python -m gis.predict_today boletus_edulis boletus_aestivalis boletus_pinophilus cantharellus_cibarius amanita_caesarea boletus_aereus || true;
         sleep 86400;

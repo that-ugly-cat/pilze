@@ -7,12 +7,38 @@ Aggiungere una specie = aggiungere un file YAML. Nessun codice del motore cambia
 
 from __future__ import annotations
 
+import os
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
-PROFILES_DIR = Path(__file__).resolve().parent.parent / "profiles"
+# Default versionati in git (baked nell'immagine Docker) = seed di fabbrica.
+DEFAULT_PROFILES_DIR = Path(__file__).resolve().parent.parent / "profiles"
+# Directory dei profili VIVI. Sul VPS è un volume persistente (PILZE_PROFILES_DIR):
+# gli edit online sono la fonte di verità e non tornano in git. Altrove = i default.
+PROFILES_DIR = Path(os.environ.get("PILZE_PROFILES_DIR") or DEFAULT_PROFILES_DIR)
+
+
+def seed_profiles(src: Path | str = DEFAULT_PROFILES_DIR,
+                  dst: Path | str = PROFILES_DIR) -> int:
+    """Popola la dir viva coi default se è distinta da src ed è priva di profili.
+
+    Evita il footgun "volume vuoto → nessun profilo" su un deploy pulito. Ritorna
+    quanti file ha copiato (0 se dst == src o se già popolata).
+    """
+    src, dst = Path(src), Path(dst)
+    if dst.resolve() == src.resolve():
+        return 0
+    dst.mkdir(parents=True, exist_ok=True)
+    if any(dst.glob("*.yaml")):
+        return 0
+    n = 0
+    for f in sorted(src.glob("*.yaml")):
+        shutil.copy2(f, dst / f.name)
+        n += 1
+    return n
 
 VALID_TROPHIC = {"mycorrhizal", "saprotrophic", "facultative"}
 CROSSWALK_CLASSES = {
@@ -71,6 +97,14 @@ def _from_dict(d: dict) -> SpeciesProfile:
         phenology_months=s.get("phenology_months", []) or [],
         dynamic_triggers=s.get("dynamic_triggers", {}) or {},
     )
+
+
+def parse_profile_text(text: str) -> SpeciesProfile:
+    """Parsa il testo YAML di un profilo in SpeciesProfile. Solleva su YAML invalido."""
+    data = yaml.safe_load(text)
+    if not data:
+        raise ValueError("YAML vuoto")
+    return _from_dict(data)
 
 
 def load_profiles(directory: Path | str = PROFILES_DIR) -> dict[str, SpeciesProfile]:
