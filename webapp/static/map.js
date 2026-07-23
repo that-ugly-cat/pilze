@@ -11,11 +11,12 @@ let pronteLayer = null, pinsLayer = null;
 function setStatus(t) { status.textContent = t; }
 
 // --- overlay idoneità: griglia fucsia su canvas ---------------------------- //
-// Il server serve i punteggi per cella (griglia 4326 quantizzata a uint8). Il
-// canvas li disegna: colore per punteggio, soglia (cutoff) e opacità applicate
-// client-side (istantanee), bordi cella opzionali, hover → punteggio della cella.
+// Il server serve i punteggi per cella (griglia in EPSG:3857, come la mappa base,
+// quantizzata a uint8). Il canvas li disegna: colore per punteggio, soglia (cutoff)
+// e opacità client-side (istantanee), hover → punteggio della cella. La griglia in
+// 3857 rende le celle quadrate a schermo e allineate ai tile.
 const GridLayer = L.Layer.extend({
-  initialize() { this._grid = null; this._cutoff = 0.3; this._showGrid = false; },
+  initialize() { this._grid = null; this._cutoff = 0.3; },
 
   onAdd(map) {
     this._map = map;
@@ -30,23 +31,23 @@ const GridLayer = L.Layer.extend({
   _size() { const el = this._map.getContainer(); return { x: el.clientWidth, y: el.clientHeight }; },
 
   onRemove(map) {
-    map.off('moveend zoomend resize viewreset', this._reset, this);
+    map.off('moveend zoomend resize viewreset load', this._reset, this);
     if (this._canvas) L.DomUtil.remove(this._canvas);
     this._canvas = null;
   },
 
   setGrid(g) { this._grid = g; this._reset(); },
   setCutoff(v) { this._cutoff = v; this._draw(); },
-  setShowGrid(b) { this._showGrid = b; this._draw(); },
   setOpacity(v) { if (this._canvas) this._canvas.style.opacity = v; },
 
   // punteggio della cella sotto il cursore, o null (fuori bosco / sotto soglia)
   scoreAt(ll) {
     const g = this._grid; if (!g) return null;
-    const [s, w, n, e] = g.bounds;
-    if (ll.lat < s || ll.lat > n || ll.lng < w || ll.lng > e) return null;
-    const j = Math.min(g.nx - 1, Math.floor((ll.lng - w) / (e - w) * g.nx));
-    const i = Math.min(g.ny - 1, Math.floor((n - ll.lat) / (n - s) * g.ny));
+    const [minX, minY, maxX, maxY] = g.bbox;
+    const p = this._map.options.crs.project(ll);       // lat/lon → metri 3857
+    const j = Math.floor((p.x - minX) / ((maxX - minX) / g.nx));
+    const i = Math.floor((maxY - p.y) / ((maxY - minY) / g.ny));
+    if (i < 0 || i >= g.ny || j < 0 || j >= g.nx) return null;
     const v = g.data[i * g.nx + j];
     if (!v) return null;
     const score = v / 255 * g.score_max;
@@ -68,21 +69,21 @@ const GridLayer = L.Layer.extend({
     ctx.clearRect(0, 0, c.width, c.height);
     const g = this._grid; if (!g) return;
 
-    const map = this._map, [s, w, n, e] = g.bounds;
-    const dLon = (e - w) / g.nx, dLat = (n - s) / g.ny;
-    // Web Mercator: x dipende solo da lon, y solo da lat → una proiezione per bordo.
+    const map = this._map, crs = map.options.crs, [minX, minY, maxX, maxY] = g.bbox;
+    const dx = (maxX - minX) / g.nx, dy = (maxY - minY) / g.ny;
+    // 3857 → schermo è lineare e separabile: x dipende solo da mercX, y solo da mercY.
     const xs = new Float64Array(g.nx + 1), ys = new Float64Array(g.ny + 1);
-    for (let j = 0; j <= g.nx; j++) xs[j] = map.latLngToContainerPoint([s, w + j * dLon]).x;
-    for (let i = 0; i <= g.ny; i++) ys[i] = map.latLngToContainerPoint([n - i * dLat, w]).y;
+    for (let j = 0; j <= g.nx; j++)
+      xs[j] = map.latLngToContainerPoint(crs.unproject(L.point(minX + j * dx, maxY))).x;
+    for (let i = 0; i <= g.ny; i++)
+      ys[i] = map.latLngToContainerPoint(crs.unproject(L.point(minX, maxY - i * dy))).y;
 
     const thr = this._cutoff / g.score_max * 255;
-    const W = c.width, H = c.height, grid = this._showGrid;
-    ctx.strokeStyle = 'rgba(70,12,55,0.35)'; ctx.lineWidth = 0.5;
-
+    const W = c.width, H = c.height;
     for (let i = 0; i < g.ny; i++) {
       const y0 = ys[i], y1 = ys[i + 1];
       if (y1 < 0 || y0 > H) continue;
-      const row = i * g.nx, dy = y1 - y0;
+      const row = i * g.nx, ch = y1 - y0;
       for (let j = 0; j < g.nx; j++) {
         const v = g.data[row + j];
         if (v === 0 || v < thr) continue;
@@ -90,8 +91,7 @@ const GridLayer = L.Layer.extend({
         if (x1 < 0 || x0 > W) continue;
         const light = 88 - (v / 255) * 48;             // fucsia: 88%→40% con il punteggio
         ctx.fillStyle = `hsl(320, 92%, ${light}%)`;
-        ctx.fillRect(x0, y0, x1 - x0 + 0.6, dy + 0.6); // +0.6 evita cuciture subpixel
-        if (grid && (x1 - x0) >= 3) ctx.strokeRect(x0 + 0.25, y0 + 0.25, x1 - x0, dy);
+        ctx.fillRect(x0, y0, x1 - x0 + 0.6, ch + 0.6); // +0.6 evita cuciture subpixel
       }
     }
   }
@@ -100,7 +100,6 @@ const gridLayer = new GridLayer();
 
 const cutoff = document.getElementById('cutoff'), cutVal = document.getElementById('cut-val');
 const opacity = document.getElementById('opacity'), opVal = document.getElementById('op-val');
-const gridToggle = document.getElementById('l-grid');
 
 function b64ToBytes(b64) {
   const bin = atob(b64), a = new Uint8Array(bin.length);
@@ -120,7 +119,6 @@ async function loadStatic() {
   if (!map.hasLayer(gridLayer)) gridLayer.addTo(map);
   gridLayer.setOpacity(parseFloat(opacity.value));
   gridLayer._cutoff = parseFloat(cutoff.value);
-  gridLayer._showGrid = gridToggle.checked;
   gridLayer.setGrid(g);
   setStatus('');
 }
@@ -133,7 +131,6 @@ opacity.addEventListener('input', () => {
   opVal.textContent = Math.round(opacity.value * 100) + '%';
   gridLayer.setOpacity(parseFloat(opacity.value));
 });
-gridToggle.addEventListener('change', () => gridLayer.setShowGrid(gridToggle.checked));
 
 // hover → tooltip col punteggio della cella
 const tip = L.tooltip({ className: 'grid-tip', direction: 'top', offset: [0, -2], opacity: 0.95 });

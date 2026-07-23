@@ -11,11 +11,10 @@ fieldset { border: 1px solid #d7dcd2; border-radius: 6px; margin: 12px 0; }
 #static-ctl.off { display: none; }
 label.slabel { font-size: 12px; color: #556; margin: 5px 0 2px; }
 label.slabel span { color: #a01d78; font-weight: 600; }
-label.inline { display: flex; align-items: center; gap: 5px; font-size: 12px; margin: 6px 0 4px; }
 #static-ctl input[type=range] { width: 100%; margin-top: 2px; accent-color: #d61f96; }
-.ramp { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #778; margin-top: 4px; }
-.ramp i { flex: 1; height: 8px; border-radius: 4px;
-  background: linear-gradient(90deg, hsl(320 90% 88%), hsl(320 95% 40%)); }
+.ramp { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #778; margin-top: 6px; }
+.ramp .ramp-bar { flex: 1 1 auto; min-width: 40px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, hsl(320, 85%, 82%), hsl(320, 95%, 42%)); }
 .pilze-grid { position: absolute; pointer-events: none; }
 .leaflet-tooltip.grid-tip { font-size: 12px; padding: 2px 7px; }
 .leaflet-tooltip.grid-tip b { color: #d61f96; }
