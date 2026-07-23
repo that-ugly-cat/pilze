@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pilze</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{ asset('style.css') }}">
 </head><body>
   <div id="panel">
     <h1>🍄 Pilze</h1>
@@ -33,5 +33,5 @@
   </div>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/static/map.js"></script>
+  <script src="{{ asset('map.js') }}"></script>
 </body></html>

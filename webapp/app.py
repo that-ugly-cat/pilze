@@ -7,6 +7,7 @@ Ritrovamenti CONDIVISI tra gli account (decisione A: solo persone fidate).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import urllib.request
@@ -30,6 +31,25 @@ app = FastAPI(title="Pilze")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 REG = load_profiles()
+
+_ASSET_HASH: dict[str, str] = {}
+
+
+def asset(name: str) -> str:
+    """URL di uno static con cache-buster = hash del contenuto (una volta per processo).
+
+    L'immagine Docker si ricostruisce a ogni deploy → nuovo processo → l'hash cambia
+    solo per i file effettivamente modificati; il browser ri-scarica solo quelli.
+    """
+    if name not in _ASSET_HASH:
+        try:
+            _ASSET_HASH[name] = hashlib.md5((BASE / "static" / name).read_bytes()).hexdigest()[:8]
+        except FileNotFoundError:
+            _ASSET_HASH[name] = "0"
+    return f"/static/{name}?v={_ASSET_HASH[name]}"
+
+
+templates.env.globals["asset"] = asset
 
 
 @app.on_event("startup")
