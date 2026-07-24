@@ -15,6 +15,14 @@ label.slabel span { color: #a01d78; font-weight: 600; }
 .ramp { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #778; margin-top: 6px; }
 .ramp .ramp-bar { flex: 1 1 auto; min-width: 40px; height: 8px; border-radius: 4px;
   background: linear-gradient(90deg, hsl(320, 85%, 82%), hsl(320, 95%, 42%)); }
+#pronte-ctl { margin: 2px 0 8px 20px; padding-left: 8px; border-left: 2px solid #cfe0ea; }
+#pronte-ctl.off { display: none; }
+#pronte-ctl input[type=range] { width: 100%; margin-top: 2px; accent-color: #0077cc; }
+.states { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #556; margin-top: 5px; }
+.states span { display: flex; align-items: center; gap: 4px; }
+.states i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.leaflet-tooltip.pronte-tip { font-size: 12px; padding: 3px 7px; }
+.leaflet-tooltip.pronte-tip b { color: #0077cc; }
 .pilze-grid { position: absolute; pointer-events: none; }
 .leaflet-tooltip.grid-tip { font-size: 12px; padding: 2px 7px; }
 .leaflet-tooltip.grid-tip b { color: #d61f96; }

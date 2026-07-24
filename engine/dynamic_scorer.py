@@ -73,3 +73,39 @@ def readiness(profile: SpeciesProfile, feat: dict, breakdown: bool = False):
     if breakdown:
         return score, {"phenology": pheno, "moisture_gate": moist, **graded}
     return score
+
+
+# Soglia di "carica" per mostrare una cella (readiness senza il fattore lag) e fattore
+# della finestra "tardi" (Lmax < dst ≤ TARDI_FACTOR·Lmax). Entrambi tarabili.
+CHARGE_THR = 0.5
+TARDI_FACTOR = 2.0
+
+
+def readiness_state(profile: SpeciesProfile, feat: dict, charge_thr: float = CHARGE_THR) -> dict:
+    """Fase della buttata per la viz. Ritorna {state, readiness, charge, dst, eta?, days_past?}.
+
+    charge = readiness SENZA il fattore lag (pioggia×temp×shock, coi gate) → dice se le
+    condizioni ci sono, a prescindere dal timing. La FASE viene da days_since_trigger (dst)
+    rispetto a lag_days.opt=[Lmin,Lmax]: in_fieri (dst<Lmin) · pronto (in finestra) ·
+    tardi (dst≤2·Lmax). state=None se gate chiusi, carica sotto soglia, o niente trigger.
+    """
+    score, bd = readiness(profile, feat, breakdown=True)
+    non_lag = [bd["rain"], bd["soil_temp"], bd["shock"]]
+    charge = bd["phenology"] * bd["moisture_gate"] * \
+        math.exp(sum(math.log(max(v, 1e-6)) for v in non_lag) / len(non_lag))
+    out = {"state": None, "readiness": round(score, 3), "charge": round(charge, 3)}
+    if bd["phenology"] == 0 or bd["moisture_gate"] == 0 or charge < charge_thr:
+        return out
+    dst = feat.get("days_since_trigger")
+    opt = (profile.dynamic_triggers.get("lag_days") or {}).get("opt")
+    if dst is None or not opt:
+        return out
+    lmin, lmax = float(opt[0]), float(opt[1])
+    out["dst"] = int(dst)
+    if dst < lmin:
+        out["state"], out["eta"] = "in_fieri", int(round(lmin - dst))
+    elif dst <= lmax:
+        out["state"] = "pronto"
+    elif dst <= TARDI_FACTOR * lmax:
+        out["state"], out["days_past"] = "tardi", int(round(dst - lmax))
+    return out

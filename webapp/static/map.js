@@ -144,18 +144,40 @@ map.on('mousemove', (ev) => {
 });
 map.on('mouseout', hideTip);
 
-// --- pronte oggi ----------------------------------------------------------- //
+// --- pronte oggi: fase della buttata per cella meteo (quadrati 2.2km) ------- //
+const STATE_COLOR = { in_fieri: '#8ecae6', pronto: '#0077cc', tardi: '#2a3a5c' };
+const STATE_LABEL = { in_fieri: 'in fieri', pronto: 'pronto', tardi: 'tardi' };
+map.createPane('pronte');
+map.getPane('pronte').style.zIndex = 450;                 // sopra il fucsia, sotto i pin
+const pronteRenderer = L.canvas({ pane: 'pronte' });
+let pronteReq = 0;
+
+function applyPronteOpacity() {
+  map.getPane('pronte').style.opacity = document.getElementById('pronte-op').value;
+}
+
 async function loadPronte() {
+  const myReq = ++pronteReq;
   if (pronteLayer) { map.removeLayer(pronteLayer); pronteLayer = null; }
-  if (!document.getElementById('l-pronte').checked) return;
+  const on = document.getElementById('l-pronte').checked;
+  document.getElementById('pronte-ctl').classList.toggle('off', !on);
+  if (!on) return;
   const gj = await (await fetch(`/api/pronte/${sel.value}`)).json();
+  if (myReq !== pronteReq) return;            // superata da una chiamata più recente (no layer doppi)
+  if (!gj.features.length) { setStatus('nessuna cella in stato per questa specie'); return; }
+  setStatus('');
   pronteLayer = L.geoJSON(gj, {
-    pointToLayer: (f, ll) => L.circleMarker(ll, {
-      radius: 6, color: '#c33', weight: 1, fillColor: '#f55',
-      fillOpacity: Math.min(1, 0.3 + f.properties.pred)
-    }).bindPopup(`<b>pronta oggi</b><br>pred ${f.properties.pred}<br>idoneità ${f.properties.idoneita} × readiness ${f.properties.readiness}`)
+    pane: 'pronte', renderer: pronteRenderer,
+    style: f => ({ stroke: false, fillColor: STATE_COLOR[f.properties.state] || '#888', fillOpacity: 1 }),
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
+      let html = `<b>${STATE_LABEL[p.state] || p.state}</b> · readiness ${p.readiness}`;
+      if (p.eta != null) html += `<br>pronto fra ~${p.eta} gg`;
+      if (p.days_past != null) html += `<br>buttata ~${p.days_past} gg fa`;
+      layer.bindTooltip(html, { sticky: true, className: 'pronte-tip' });
+    }
   }).addTo(map);
-  if (gj.features.length === 0) setStatus('nessuna cella "pronta oggi" per questa specie');
+  applyPronteOpacity();
 }
 
 async function loadPins() {
@@ -182,5 +204,9 @@ function reloadAll() { loadStatic(); loadPronte(); loadPins(); }
 sel.addEventListener('change', () => { loadStatic(); loadPronte(); });
 document.getElementById('l-static').addEventListener('change', loadStatic);
 document.getElementById('l-pronte').addEventListener('change', loadPronte);
+document.getElementById('pronte-op').addEventListener('input', () => {
+  document.getElementById('pronte-op-val').textContent = Math.round(document.getElementById('pronte-op').value * 100) + '%';
+  applyPronteOpacity();
+});
 document.getElementById('l-pins').addEventListener('change', loadPins);
 reloadAll();

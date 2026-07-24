@@ -62,6 +62,23 @@ def cell_center(cell_id: str, cfg: dict | None = None) -> tuple[float, float]:
     return lat, lon
 
 
+def cell_polygon(cell_id: str, cfg: dict | None = None) -> list[list[float]]:
+    """Anello GeoJSON [[lon,lat]×5, chiuso] del quadrato di una cella dal suo id.
+
+    La cella è un quadrato assi-allineato in UTM (col·step..(col+1)·step); in lon/lat
+    diventa un quadrilatero lievemente deformato → si emettono i 4 angoli reali.
+    """
+    cfg = cfg or _config()
+    _, inv = _transformers(cfg["crs"])
+    step_s, col_s, row_s = cell_id[1:].split("_")
+    step, col, row = float(step_s), int(col_s), int(row_s)
+    ring = []
+    for c, r in [(col, row), (col + 1, row), (col + 1, row + 1), (col, row + 1), (col, row)]:
+        lon, lat = inv.transform(c * step, r * step)
+        ring.append([round(lon, 5), round(lat, 5)])
+    return ring
+
+
 def iter_static_cells(cfg: dict | None = None):
     """Genera (static_cell_id, lat_centro, lon_centro) su tutto il bbox di interesse.
 
