@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+import urllib.error
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -62,23 +63,46 @@ def candidate_meteo_cells(species_tif: Path, threshold: float = 0.4,
     return [(cid, la, lo) for cid, (la, lo) in seen.items()]
 
 
+def _fetch_with_backoff(coords, past_days: int, tries: int = 6):
+    """fetch_series_batch con retry esponenziale sul 429. Open-Meteo pesa il rate limit
+    per località×giorni: il backfill (35 gg × 100 loc) lo prende. Onora Retry-After se
+    presente. Ritorna la lista di serie, o None se esaurisce i tentativi."""
+    delay = 5.0
+    for attempt in range(tries):
+        try:
+            return meteo.fetch_series_batch(coords, past_days=past_days, forecast_days=1)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == tries - 1:
+                print(f"    blocco fallito: {e}")
+                return None
+            ra = e.headers.get("Retry-After") if e.headers else None
+            wait = float(ra) if (ra and str(ra).isdigit()) else delay
+            print(f"    429 rate-limit: attendo {wait:.0f}s (tentativo {attempt + 1}/{tries})", flush=True)
+            time.sleep(wait)
+            delay = min(delay * 2, 120)
+        except Exception as e:
+            print(f"    errore blocco: {e}")
+            return None
+    return None
+
+
 def poll(cells, past_days: int = 3, batch: int = BATCH, pace_s: float = 0.0) -> int:
-    """Archivia le celle in blocchi: una richiesta Open-Meteo multi-località per blocco."""
+    """Archivia le celle in blocchi: una richiesta Open-Meteo multi-località per blocco,
+    con retry/backoff sul 429 (il backfill a 35 gg è pesante e lo prende)."""
     conn = meteo.connect()
     n = 0
     total = len(cells)
     for start in range(0, total, batch):
         chunk = cells[start:start + batch]
-        try:
-            series_list = meteo.fetch_series_batch([(la, lo) for _, la, lo in chunk],
-                                                   past_days=past_days, forecast_days=1)
+        series_list = _fetch_with_backoff([(la, lo) for _, la, lo in chunk], past_days)
+        if series_list is None:
+            print(f"  blocco {start}-{start + len(chunk)} saltato")
+        else:
             if len(series_list) != len(chunk):
-                print(f"  ⚠ blocco {start}: attese {len(chunk)} risposte, ricevute {len(series_list)}")
+                print(f"  ⚠ blocco {start}: attese {len(chunk)}, ricevute {len(series_list)}")
             for (cid, _, _), series in zip(chunk, series_list):
                 meteo.upsert_daily(cid, meteo._daily(series), conn)
                 n += 1
-        except Exception as e:
-            print(f"  blocco {start}-{start + len(chunk)} fallito: {e}")
         print(f"  {min(start + batch, total)}/{total} celle…", flush=True)
         if pace_s and start + batch < total:
             time.sleep(pace_s)                 # cortesia anti-burst fra richieste
