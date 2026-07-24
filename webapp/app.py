@@ -158,8 +158,10 @@ def profiles_page(request: Request):
 def profiles_save(request: Request, name: str = Form(...), content: str = Form(...)):
     if not _is_admin(request):
         return JSONResponse({"ok": False, "errors": ["non autorizzato"]}, status_code=403)
-    if not _PROFILE_RE.match(name) or not (PROFILES_DIR / name).exists():
-        return JSONResponse({"ok": False, "errors": [f"profilo sconosciuto: {name}"]}, status_code=400)
+    # regex = anche anti-traversal (niente '/' né '..'); il file può non esistere ancora
+    # → stesso endpoint per creare una specie nuova o aggiornarne una esistente.
+    if not _PROFILE_RE.match(name):
+        return JSONResponse({"ok": False, "errors": [f"nome non valido: {name}"]}, status_code=400)
     try:
         prof = parse_profile_text(content)
     except Exception as e:

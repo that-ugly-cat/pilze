@@ -8,11 +8,14 @@
     <h1>🍄 Profili specie</h1>
     <p><a href="/">← mappa</a> · <a href="/admin">account</a> · {{ user.username }} · <a href="/logout">esci</a></p>
 
-    <label>Profilo
-      <select id="pick">
-        {% for p in profiles %}<option value="{{ p.name }}">{{ p.name }}</option>{% endfor %}
-      </select>
-    </label>
+    <div class="row">
+      <label>Profilo
+        <select id="pick">
+          {% for p in profiles %}<option value="{{ p.name }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <button id="newbtn" type="button">+ Nuovo profilo</button>
+    </div>
     <textarea id="editor" spellcheck="false" rows="22"></textarea>
     <div class="row">
       <button id="save" type="button">Salva</button>
@@ -41,6 +44,40 @@
     const msg = document.getElementById('msg');
     function load() { editor.value = byName[pick.value] || ''; msg.textContent = ''; msg.className = 'hint'; }
     pick.addEventListener('change', load); load();
+
+    const TEMPLATE = id => `species:
+  id: ${id}
+  common_name: ${id}          # nome comune (poi rigenera le mappe)
+  trophic_mode: mycorrhizal
+
+  host_genera:                # classi: querce castagno faggio abete pino altro_latifoglie altro_conifere
+    faggio: 0.5
+
+  static_envelope:
+    elevation_m: { min: 300, opt: [700, 1400], max: 1900 }
+    aspect: neutral
+    slope_deg: { opt: [5, 30] }
+    soil_ph: neutral
+    drainage: well_drained
+
+  extra_static_layers: []
+  phenology_months: [9, 10]
+
+  dynamic_triggers:
+    rain_window_days: 15
+`;
+    document.getElementById('newbtn').addEventListener('click', () => {
+      const id = (prompt('id specie — minuscole/underscore, es. boletus_reticulatus') || '').trim();
+      if (!id) return;
+      if (!/^[a-z0-9_]+$/.test(id)) { msg.textContent = '✗ id non valido (solo a-z, 0-9, _)'; msg.className = 'bad'; return; }
+      const name = id + '.yaml';
+      if (byName[name] == null) {
+        byName[name] = TEMPLATE(id);
+        const o = document.createElement('option'); o.value = name; o.textContent = name; pick.appendChild(o);
+      }
+      pick.value = name; load();
+      msg.textContent = 'nuovo profilo: compila e Salva (poi Rigenera per la mappa)'; msg.className = 'hint';
+    });
 
     document.getElementById('save').addEventListener('click', async () => {
       msg.textContent = 'salvo…'; msg.className = 'hint';
