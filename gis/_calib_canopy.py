@@ -34,7 +34,7 @@ def main():
     ca = canopy.canopy_alive(ndvi_v, nbr_v)
 
     # maschera conifera dal forestale TN (SIGFAT), rasterizzata sulla griglia del composite
-    fp = ForestProvider.trentino()
+    fp = ForestProvider.cfi()
 
     def is_conifer(t):
         c = fp.crosswalk.get(t, {})

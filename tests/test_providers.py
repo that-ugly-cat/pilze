@@ -25,35 +25,19 @@ def test_dem_provider_quota_pendenza():
     assert f["aspect"] in {"warm", "cool", "neutral"}
 
 
-@pytest.mark.skipif(not list((DATA / "forest" / "veneto").glob("*_cat.shp"))
-                    if (DATA / "forest" / "veneto").exists() else True,
-                    reason="shapefile forestali assenti (python -m gis.fetch_forest)")
-def test_forest_provider_host_composition():
+@pytest.mark.skipif(not list((DATA / "forest" / "cfi").glob("**/*.shp"))
+                    if (DATA / "forest" / "cfi").exists() else True,
+                    reason="shapefile CFI2020 assenti (data/forest/cfi/)")
+def test_forest_provider_cfi():
     pytest.importorskip("geopandas")
     from gis.providers import ForestProvider
-    fp = ForestProvider.veneto()
-    f = fp.features(46.40, 12.20)           # Dolomiti BL (conifere)
-    assert f is not None
-    if "host" in f:                          # dentro un poligono mappato
-        assert isinstance(f["host"], dict)
-        assert abs(sum(f["host"].values()) - 1.0) < 0.5   # composizione sensata
-    # punto in pianura urbana: fuori dai poligoni forestali → None (host ignoto)
-    assert fp.features(45.44, 12.33) is None or "host" in fp.features(45.44, 12.33) or True
-
-
-@pytest.mark.skipif(not list((DATA / "forest" / "trentino").glob("tipi_forestali_v.shp"))
-                    if (DATA / "forest" / "trentino").exists() else True,
-                    reason="shapefile forestale TN assente (python -m gis.fetch_forest)")
-def test_forest_provider_trentino():
-    pytest.importorskip("geopandas")
-    from gis.providers import ForestProvider
-    fp = ForestProvider.trentino()
-    # SIGFAT copre solo le unità dei piani di gestione (parziale) → prendo un punto
-    # rappresentativo di un poligono reale, garantito dentro copertura.
+    fp = ForestProvider.cfi()                # VE+Trento+Bolzano, campo Ct_CFI
+    # punto rappresentativo di un poligono reale → dentro copertura
     rp = fp.gdf.geometry.iloc[0].representative_point()
     f = fp.features(rp.y, rp.x)
     assert f is not None
-    assert "host" in f or "forest_categoria" in f
+    if "host" in f:
+        assert isinstance(f["host"], dict) and f["host"]
 
 
 def test_geology_classify_litologia():

@@ -109,7 +109,7 @@ class ForestProvider(FeatureProvider):
         shps = sorted(Path(forest_dir).glob(shp_glob))
         if not shps:
             raise FileNotFoundError(
-                f"Nessuno shapefile ({shp_glob}) in {forest_dir}. Esegui: python -m gis.fetch_forest")
+                f"Nessuno shapefile ({shp_glob}) in {forest_dir} (CFI2020: metti i .shp in data/forest/cfi/)")
         self.field = category_field
         parts = [gpd.read_file(s, columns=[category_field]) for s in shps]
         self.gdf = pd.concat(parts, ignore_index=True).to_crs("EPSG:4326")
@@ -119,18 +119,9 @@ class ForestProvider(FeatureProvider):
             self.crosswalk = (yaml.safe_load(fh) or {}).get(region, {}) or {}
 
     @classmethod
-    def veneto(cls, crosswalk_path: Path | str = CROSSWALK_PATH) -> "ForestProvider":
-        return cls(FOREST_DIR / "veneto", "*_cat.shp", "CATEGORIA", "veneto", crosswalk_path)
-
-    @classmethod
-    def trentino(cls, crosswalk_path: Path | str = CROSSWALK_PATH) -> "ForestProvider":
-        return cls(FOREST_DIR / "trentino", "tipi_forestali_v.shp", "tipo_fores", "trentino",
-                   crosswalk_path)
-
-    @classmethod
     def cfi(cls, crosswalk_path: Path | str = CROSSWALK_PATH) -> "ForestProvider":
         """CFI2020 nazionale — legenda UNICA (campo Ct_CFI) per VE + Trento + Bolzano.
-        Copertura completa del bosco → sostituisce il patchwork veneto()/trentino()."""
+        Copertura completa del bosco. È l'unica fonte forestale (patchwork VE/TN eliminato)."""
         return cls(FOREST_DIR / "cfi", "**/*.shp", "Ct_CFI", "cfi", crosswalk_path)
 
     def features(self, lat: float, lon: float) -> dict | None:
@@ -200,6 +191,8 @@ class GeologyProvider(FeatureProvider):
     """
 
     GPKG_TN = Path(__file__).resolve().parent.parent / "data" / "geology" / "substrato_tn.gpkg"
+    DIR_TN = Path(__file__).resolve().parent.parent / "data" / "geology" / "trentino"
+    GPKG_BZ = Path(__file__).resolve().parent.parent / "data" / "geology" / "bolzano" / "geologia_bz.gpkg"
     SHP_VE = (Path(__file__).resolve().parent.parent / "data" / "geology" / "veneto"
               / "c0501031_litologiareg_.shp")
 
@@ -207,7 +200,9 @@ class GeologyProvider(FeatureProvider):
     TN_CALC = ("CALCARE", "CALCARI", "CALCAREN", "DOLOMIA", "DOLOMIE", "CARNIOLA",
                "CALCISCIST", "OOLIT", "MAIOLICA", "BIANCONE", "SCAGLIA", "CORNA",
                "MARMO", "MARMI", "TRAVERTINO", "ENCRINITE", "ROSSO AMMONITICO",
-               "SASS DE LA LUNA", "SELCIFERO")
+               "SASS DE LA LUNA", "SELCIFERO",
+               # piattaforme carbonatiche dolomitiche a nome di località (VE/TN/BZ)
+               "SCILIAR", "SCHLERN", "CONTRIN", "LATEMAR", "MENDOLA", "SERLA", "CASSIANA")
     TN_ACID = ("GRANIT", "GRANODIOR", "MONZOGRAN", "APLIT", "PEGMATIT", "PORFI",
                "FILLAD", "GNEISS", "MICASCIST", "SCISTI", "QUARZIT", "QUARZO",
                "RIOLIT", "DACIT", "FELSIT", "IGNIMBRIT", "TUFO", "TUFF", "VULCAN",
@@ -242,7 +237,11 @@ class GeologyProvider(FeatureProvider):
 
     @classmethod
     def trentino(cls, **kw) -> "FeatureProvider":
-        """Locale se il gpkg c'è (veloce), altrimenti REST-per-punto con cache (gentile)."""
+        """Carta Geologica Substrato PAT, shapefile LOCALE (campo nome, scaricato dal
+        geocatalogo SIAT → point-in-polygon veloce, usabile nella mappa). Fallback: REST."""
+        shps = sorted(cls.DIR_TN.glob("*substrato*.shp"))
+        if shps:
+            return cls(shps[0], "nome", cls.TN_CALC, cls.TN_ACID, **kw)
         if cls.GPKG_TN.exists():
             return cls(cls.GPKG_TN, "NOME", cls.TN_CALC, cls.TN_ACID, **kw)
         return _GeologyREST(cls.TN_REST, cls.TN_CACHE, cls.TN_CALC, cls.TN_ACID)
@@ -250,6 +249,13 @@ class GeologyProvider(FeatureProvider):
     @classmethod
     def veneto(cls, **kw) -> "GeologyProvider":
         return cls(cls.SHP_VE, "materiali_", cls.VE_CALC, cls.VE_ACID, **kw)
+
+    @classmethod
+    def bolzano(cls, **kw) -> "GeologyProvider":
+        """Geologia Alto Adige (WFS PAB → gpkg locale), campo litho = nome formazione.
+        Stesse litologie alpine del TN → riusa TN_CALC/TN_ACID (Dolomia→calc, gneiss/
+        filladi/vulcaniti atesine→acid). Sintemi quaternari → fallback substrato vicino."""
+        return cls(cls.GPKG_BZ, "litho", cls.TN_CALC, cls.TN_ACID, **kw)
 
     @staticmethod
     def classify(descr: str, calc_kw: tuple, acid_kw: tuple) -> str:

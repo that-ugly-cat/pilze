@@ -26,7 +26,7 @@ from engine.profiles import load_profiles
 from engine.static_scorer import static_suitability
 
 from .providers import (CanopyProvider, CompositeFeatureProvider, DEMProvider,
-                        ForestProvider, WorldCoverProvider)
+                        ForestProvider, GeologyProvider, WorldCoverProvider)
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
 CONFIG = Path(__file__).resolve().parent.parent / "config" / "grid.yaml"
@@ -34,23 +34,19 @@ CRS = "EPSG:32632"
 
 
 def build_provider():
-    ps, active = [DEMProvider()], ["DEM"]
-    try:                                          # CFI2020: forestale genere completo VE+TN+BZ
-        ps.append(ForestProvider.cfi()); active.append("forestale-CFI")
-    except FileNotFoundError:                     # fallback al patchwork VE/TN
-        for name, ctor in [("VE", ForestProvider.veneto), ("TN", ForestProvider.trentino)]:
-            try:
-                ps.append(ctor()); active.append(f"forestale-{name}")
-            except FileNotFoundError:
-                pass
-    try:
-        ps.append(WorldCoverProvider()); active.append("worldcover-gate")
-    except FileNotFoundError:
-        pass
-    try:
-        ps.append(CanopyProvider()); active.append("canopy")
-    except FileNotFoundError:
-        pass
+    # Forestale: SOLO CFI2020 (VE+TN+BZ completo) — patchwork VE/TN eliminato.
+    ps, active = [DEMProvider(), ForestProvider.cfi()], ["DEM", "forestale-CFI"]
+    # Gate bosco + canopy + suolo (soil_ph). Il suolo TN/BZ nella mappa aspetta la
+    # geologia LOCALE (il TN è REST, non scala su 150k celle); il Veneto è locale → attivo.
+    for label, ctor in [("worldcover-gate", WorldCoverProvider),
+                        ("canopy", CanopyProvider),
+                        ("suolo-VE", GeologyProvider.veneto),
+                        ("suolo-TN", GeologyProvider.trentino),
+                        ("suolo-BZ", GeologyProvider.bolzano)]:
+        try:
+            ps.append(ctor()); active.append(label)
+        except FileNotFoundError:
+            pass
     return CompositeFeatureProvider(ps), active
 
 
