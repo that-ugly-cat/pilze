@@ -4,6 +4,14 @@ L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
   maxZoom: 17, attribution: '© OpenTopoMap, OpenStreetMap contributors'
 }).addTo(map);
 
+// --- pannello collassabile + mobile ---------------------------------------- //
+map.zoomControl.setPosition('topright');            // libera il top-left per il toggle
+document.getElementById('panel-toggle').addEventListener('click', () => {
+  document.body.classList.toggle('nav-collapsed');
+  setTimeout(() => map.invalidateSize(), 260);      // ridisegna dopo la transizione
+});
+if (window.innerWidth <= 700) document.body.classList.add('nav-collapsed');
+
 const sel = document.getElementById('species');
 const status = document.getElementById('status');
 let pronteLayer = null, pinsLayer = null;
