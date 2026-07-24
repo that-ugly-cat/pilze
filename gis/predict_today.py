@@ -69,6 +69,8 @@ def predict(species: str, static_thr: float = 0.4, ready_thr: float = 0.3):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sp = [a for a in sys.argv[1:] if not a.startswith("-")] or ["boletus_edulis"]
+    sp = [a for a in sys.argv[1:] if not a.startswith("-")]
+    if not sp:                       # default: tutte le specie con una mappa presente
+        sp = sorted(p.stem.replace("idoneita_", "") for p in MAPS_DIR.glob("idoneita_*.tif"))
     for s in sp:
         predict(s)

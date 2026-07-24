@@ -7,6 +7,7 @@ x-pilze: &pilze
   restart: unless-stopped
   env_file: .env
   environment:
+    TZ: Europe/Rome            # schedulazione poller e log in ora locale
     # Profili VIVI nel volume dati (edit online = fonte di verità, fuori da git).
     # Seed dai default baked al primo avvio (webapp) o dal poller (vedi sotto).
     PILZE_PROFILES_DIR: /app/data/profiles
@@ -31,10 +32,13 @@ services:
   poller:
     <<: *pilze
     # ICON-D2 archivia in avanti (§9): fetch giornaliero + ricalcolo "pronte oggi".
+    # Specie non elencate: fetch_meteo/predict_today le enumerano dalle mappe presenti
+    # (una nuova specie entra da sola). fetch_meteo usa batching multi-località
+    # (~45 richieste per l'intera union) → poll in ~1 min, una volta al giorno alle 00:00.
     command: >
       sh -c 'python -c "from engine.profiles import seed_profiles; seed_profiles()" || true;
         while true; do
-        python -m gis.fetch_meteo --daily boletus_edulis boletus_aestivalis boletus_pinophilus cantharellus_cibarius amanita_caesarea boletus_aereus || true;
-        python -m gis.predict_today boletus_edulis boletus_aestivalis boletus_pinophilus cantharellus_cibarius amanita_caesarea boletus_aereus || true;
-        sleep 86400;
+        python -m gis.fetch_meteo --daily || true;
+        python -m gis.predict_today || true;
+        sleep $(( $(date -d "00:00 tomorrow" +%s) - $(date +%s) ));
       done'

@@ -22,15 +22,30 @@ HOURLY = ["precipitation", "soil_temperature_6cm", "soil_moisture_3_to_9cm", "te
 RAIN_TRIGGER_MM = 10.0        # pioggia giornaliera che conta come "trigger" di flush
 
 
-def fetch_series(lat: float, lon: float, past_days: int = 35, forecast_days: int = 2) -> dict:
-    """Serie oraria da Open-Meteo DWD-ICON. Ritorna dict di liste allineate a 'time'."""
-    p = urllib.parse.urlencode({"latitude": lat, "longitude": lon, "hourly": ",".join(HOURLY),
+def _parse_hourly(h: dict) -> dict:
+    return {"time": [datetime.fromisoformat(t) for t in h["time"]],
+            "precip": h["precipitation"], "soil_temp": h["soil_temperature_6cm"],
+            "soil_moist": h["soil_moisture_3_to_9cm"], "temp": h["temperature_2m"]}
+
+
+def fetch_series_batch(coords: list[tuple[float, float]], past_days: int = 35,
+                       forecast_days: int = 2) -> list[dict]:
+    """Serie orarie per N località in UNA richiesta (Open-Meteo accetta coordinate
+    separate da virgola e ritorna un array nello stesso ordine). Riduce le richieste
+    HTTP di ~100× rispetto a una-per-cella. Ritorna la lista allineata a `coords`."""
+    lats = ",".join(f"{la:.5f}" for la, lo in coords)
+    lons = ",".join(f"{lo:.5f}" for la, lo in coords)
+    p = urllib.parse.urlencode({"latitude": lats, "longitude": lons, "hourly": ",".join(HOURLY),
                                 "past_days": past_days, "forecast_days": forecast_days,
                                 "timezone": "Europe/Rome"})
-    d = json.loads(urllib.request.urlopen(f"{API}?{p}", timeout=40).read())["hourly"]
-    return {"time": [datetime.fromisoformat(t) for t in d["time"]],
-            "precip": d["precipitation"], "soil_temp": d["soil_temperature_6cm"],
-            "soil_moist": d["soil_moisture_3_to_9cm"], "temp": d["temperature_2m"]}
+    raw = json.loads(urllib.request.urlopen(f"{API}?{p}", timeout=120).read())
+    items = raw if isinstance(raw, list) else [raw]    # 1 sola coord → oggetto singolo
+    return [_parse_hourly(d["hourly"]) for d in items]
+
+
+def fetch_series(lat: float, lon: float, past_days: int = 35, forecast_days: int = 2) -> dict:
+    """Serie oraria per una località (wrapper su fetch_series_batch)."""
+    return fetch_series_batch([(lat, lon)], past_days, forecast_days)[0]
 
 
 def _daily(series: dict, until: datetime | None = None):
