@@ -1,12 +1,12 @@
 """Mappa di idoneità statica per specie (spec §8, v1) su griglia coarse.
 
-Scora idoneità_statica su una griglia a passo grosso (default 500 m) con i provider
+Scora idoneità_statica su una griglia a passo fine (default 200 m) con i provider
 disponibili (DEM + forestale + canopy; **NO geologia REST** — non scala e martella il
 server PAT). Efficienza: le feature della cella sono species-agnostic → interrogo i
 provider UNA volta per cella e scoro tutte e 6 le specie. Output: un GeoTIFF float32
 per specie + un GeoJSON top-K (per Leaflet).
 
-    python -m gis.make_map            # 500 m su tutto il bbox VE+TN
+    python -m gis.make_map            # 200 m su tutto il bbox VE+TN
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def build_provider():
     return CompositeFeatureProvider(ps), active
 
 
-def main(step_m: float = 500.0, only: list[str] | None = None):
+def main(step_m: float = 200.0, only: list[str] | None = None):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     cfg = yaml.safe_load(open(CONFIG, encoding="utf-8"))
