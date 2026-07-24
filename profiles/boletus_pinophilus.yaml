@@ -7,11 +7,17 @@ species:
   trophic_mode: mycorrhizal
   similar_to: [boletus_edulis]
 
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
   host_genera:
-    pino: 1.0            # pino silvestre; in Triveneto anche pino cembro
-    abete: 0.9           # abete rosso, abete bianco
-    faggio: 0.6
-    castagno: 0.4
+    pineta_silvestre: 1.0
+    pineta_nera: 1.0
+    pecceta: 0.9
+    pecceta_secondaria: 0.9
+    abetina: 0.9
+    mugheta: 0.8
+    faggeta: 0.6
+    larici_cembreto: 0.4      # larice NON host, ma il cembro sì → peso ridotto
+    castagneto: 0.4
 
   static_envelope:
     elevation_m: { min: 1000, opt: [1200, 1800], max: 2000 }

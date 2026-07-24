@@ -19,9 +19,9 @@ def test_species_buttons_ordinati_per_nome():
 
 def test_host_gate_azzera_senza_ospite():
     aereus = REG["boletus_aereus"]
-    buona = {"host_class": "querce", "elevation_m": 400, "aspect": "warm",
+    buona = {"host_class": "querceto", "elevation_m": 400, "aspect": "warm",
              "soil_ph": "acidic", "drainage": "well_drained", "slope_deg": 15}
-    senza = {**buona, "host_class": "faggio"}      # aereus non ha faggio → host 0
+    senza = {**buona, "host_class": "faggeta"}      # aereus non ha faggio → host 0
     assert static_suitability(aereus, buona) > 0.6
     assert static_suitability(aereus, senza) == 0.0
 
@@ -33,12 +33,12 @@ def test_host_sconosciuto_e_neutro_non_gate():
     solo_dem = {"elevation_m": 400, "slope_deg": 15, "aspect": "warm"}
     assert static_suitability(aereus, solo_dem) > 0.5
     # ma host noto-e-incompatibile resta gate a 0
-    assert static_suitability(aereus, {**solo_dem, "host_class": "faggio"}) == 0.0
+    assert static_suitability(aereus, {**solo_dem, "host_class": "faggeta"}) == 0.0
 
 
 def test_elevation_fuori_range_abbassa():
     aereus = REG["boletus_aereus"]                 # opt 200–600, max 800
-    base = {"host_class": "querce", "aspect": "warm", "soil_ph": "acidic",
+    base = {"host_class": "querceto", "aspect": "warm", "soil_ph": "acidic",
             "drainage": "well_drained", "slope_deg": 15}
     in_opt = static_suitability(aereus, {**base, "elevation_m": 400})
     troppo_alta = static_suitability(aereus, {**base, "elevation_m": 900})
@@ -47,7 +47,7 @@ def test_elevation_fuori_range_abbassa():
 
 def test_canopy_morta_declassa_conifera():
     edulis = REG["boletus_edulis"]                 # host abete 1.0
-    cell = {"host_class": "abete", "elevation_m": 1200, "aspect": "cool",
+    cell = {"host_class": "pecceta", "elevation_m": 1200, "aspect": "cool",
             "soil_ph": "acidic", "drainage": "well_drained", "slope_deg": 15}
     viva = static_suitability(edulis, {**cell, "canopy_alive": 1.0})
     morta = static_suitability(edulis, {**cell, "canopy_alive": 0.1})
@@ -77,7 +77,7 @@ def test_readiness_gate_moisture_floor():
 def test_forest_fraction_gate():
     # gate "è bosco?" (WorldCover): fuori-bosco azzera, frazione scala linearmente
     edulis = REG["boletus_edulis"]
-    cell = {"host_class": "abete", "elevation_m": 1200, "aspect": "cool",
+    cell = {"host_class": "pecceta", "elevation_m": 1200, "aspect": "cool",
             "soil_ph": "acidic", "drainage": "well_drained", "slope_deg": 15}
     full = static_suitability(edulis, cell)                      # forest_fraction assente → 1.0
     assert full > 0.5
@@ -87,7 +87,7 @@ def test_forest_fraction_gate():
 
 def test_combiner_e_prodotto():
     aereus = REG["boletus_aereus"]
-    cell = {"host_class": "querce", "elevation_m": 400, "aspect": "warm",
+    cell = {"host_class": "querceto", "elevation_m": 400, "aspect": "warm",
             "soil_ph": "acidic", "drainage": "well_drained", "slope_deg": 15}
     feat_secco = {"month": 8, "soil_moisture": 0.05, "cumulative_rain_mm": 60,
                   "soil_temp_c": 17, "thermal_shock_c": 6, "days_since_trigger": 14}

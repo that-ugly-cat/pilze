@@ -6,12 +6,24 @@ species:
   trophic_mode: mycorrhizal
   similar_to: [boletus_aereus, boletus_edulis]
 
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
   host_genera:
-    castagno: 1.0
-    querce: 0.8           # roverella / querce
-    faggio: 0.6
-    altro_latifoglie: 0.3 # carpino, betulla
-    abete: 0.2            # radure di abete rosso
+    castagneto: 1.0
+    querceto: 0.8
+    querceto_rovere: 0.8
+    lecceta: 0.8
+    faggeta: 0.6
+    querco_carpineto: 0.6
+    latifoglie_sempreverdi: 0.55
+    orno_ostrieto: 0.3
+    acero_frassineto: 0.3
+    formazione_marginale: 0.3
+    pecceta: 0.2
+    pecceta_secondaria: 0.2
+    abetina: 0.2
+    frassineto: 0.15
+    alneto: 0.09
+    altre_latifoglie: 0.09
 
   static_envelope:
     elevation_m: { min: 200, opt: [300, 1000], max: 1500 }

@@ -6,12 +6,19 @@ species:
   trophic_mode: mycorrhizal
   similar_to: [boletus_pinophilus, boletus_aestivalis]
 
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
   host_genera:
-    abete: 1.0           # abete rosso (classico delle peccete); anche abete bianco
-    faggio: 0.9
-    castagno: 0.7
-    querce: 0.4
-    # MAI larice (spec §2) — non è una classe host qui
+    pecceta: 1.0
+    pecceta_secondaria: 1.0
+    abetina: 1.0
+    faggeta: 0.9
+    castagneto: 0.7
+    querceto: 0.4
+    querceto_rovere: 0.4
+    lecceta: 0.4
+    querco_carpineto: 0.24
+    latifoglie_sempreverdi: 0.2
+    # larici_cembreto assente: MAI larice (spec §2)
 
   static_envelope:
     elevation_m: { min: 500, opt: [800, 1600], max: 2000 }

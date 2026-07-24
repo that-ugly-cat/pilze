@@ -6,11 +6,21 @@ species:
   trophic_mode: mycorrhizal
   similar_to: [boletus_aereus]         # condivide la nicchia termofila
 
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
   host_genera:
-    castagno: 1.0        # preferito
-    querce: 0.7          # querce termofile
-    altro_latifoglie: 0.4 # carpino, nocciolo, orniello
-    # NB: NON faggio (spec §2) — assente dal profilo host
+    castagneto: 1.0
+    querceto: 0.7
+    querceto_rovere: 0.7
+    lecceta: 0.7
+    querco_carpineto: 0.58
+    latifoglie_sempreverdi: 0.55
+    orno_ostrieto: 0.4
+    acero_frassineto: 0.4
+    formazione_marginale: 0.4
+    frassineto: 0.2
+    alneto: 0.12
+    altre_latifoglie: 0.12
+    # NB: NON faggeta (spec §2) — assente dal profilo host
 
   static_envelope:
     elevation_m: { min: 200, opt: [300, 700], max: 900 }   # al nord ~700–800; max ~1000

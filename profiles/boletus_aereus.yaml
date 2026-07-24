@@ -8,10 +8,20 @@ species:
   trophic_mode: mycorrhizal
   similar_to: [boletus_aestivalis, amanita_caesarea]   # descrittivo (§7.1), solo per partial pooling futuro
 
-  host_genera:            # chiavi = classi del crosswalk (§3.3)
-    querce: 1.0           # roverella, cerro, farnia, leccio
-    castagno: 0.7
-    altro_latifoglie: 0.3 # carpino nero, cisto
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
+  host_genera:
+    querceto: 1.0
+    querceto_rovere: 1.0
+    lecceta: 1.0
+    querco_carpineto: 0.72
+    castagneto: 0.7
+    latifoglie_sempreverdi: 0.65
+    orno_ostrieto: 0.3
+    acero_frassineto: 0.3
+    formazione_marginale: 0.3
+    frassineto: 0.15
+    alneto: 0.09
+    altre_latifoglie: 0.09
 
   static_envelope:
     elevation_m: { min: 100, opt: [200, 600], max: 800 }

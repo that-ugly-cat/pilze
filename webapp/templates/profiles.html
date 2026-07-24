@@ -50,8 +50,9 @@
   common_name: ${id}          # nome comune (poi rigenera le mappe)
   trophic_mode: mycorrhizal
 
-  host_genera:                # classi: querce castagno faggio abete pino altro_latifoglie altro_conifere
-    faggio: 0.5
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
+  host_genera:
+    faggeta: 0.5
 
   static_envelope:
     elevation_m: { min: 300, opt: [700, 1400], max: 1900 }

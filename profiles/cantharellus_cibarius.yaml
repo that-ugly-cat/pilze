@@ -7,12 +7,23 @@ species:
   trophic_mode: mycorrhizal
   similar_to: []                        # ubiquitario, nessun analogo stretto tra le sei
 
-  host_genera:            # ampio spettro (fasi: querce mag–giu → castagno → faggio autunno)
-    faggio: 0.9
-    querce: 0.8
-    castagno: 0.8
-    abete: 0.7            # abete rosso, abete bianco
-    pino: 0.6
+  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
+  # ampio spettro (fasi: querce mag–giu → castagno → faggio autunno)
+  host_genera:
+    faggeta: 0.9
+    castagneto: 0.8
+    querceto: 0.8
+    querceto_rovere: 0.8
+    lecceta: 0.8
+    pecceta: 0.7
+    pecceta_secondaria: 0.7
+    abetina: 0.7
+    pineta_silvestre: 0.6
+    pineta_nera: 0.6
+    mugheta: 0.48
+    querco_carpineto: 0.48
+    latifoglie_sempreverdi: 0.4
+    larici_cembreto: 0.24
 
   static_envelope:
     elevation_m: { min: 300, opt: [600, 1600], max: 2000 }

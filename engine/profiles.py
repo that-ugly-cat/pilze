@@ -41,9 +41,14 @@ def seed_profiles(src: Path | str = DEFAULT_PROFILES_DIR,
     return n
 
 VALID_TROPHIC = {"mycorrhizal", "saprotrophic", "facultative"}
+# Classi host = le 20 categorie forestali CFI2020 (nomi leggibili). Devono restare
+# allineate a target_classes in config/crosswalk.yaml.
 CROSSWALK_CLASSES = {
-    "querce", "castagno", "faggio", "abete", "pino",
-    "altro_latifoglie", "altro_conifere", "non_forestale",
+    "pecceta", "pecceta_secondaria", "abetina", "larici_cembreto", "faggeta",
+    "mugheta", "pineta_silvestre", "pineta_nera", "castagneto", "querceto",
+    "querceto_rovere", "querco_carpineto", "orno_ostrieto", "lecceta",
+    "acero_frassineto", "frassineto", "alneto", "altre_latifoglie",
+    "latifoglie_sempreverdi", "formazione_marginale",
 }
 
 

@@ -21,7 +21,9 @@ import math
 from . import membership as m
 from .profiles import SpeciesProfile
 
-CONIFER_HOSTS = {"abete", "pino", "altro_conifere"}
+# Classi conifera (fra le 20 CFI): la chioma morta (canopy) le declassa (Vaia/bostrico).
+CONIFER_HOSTS = {"pecceta", "pecceta_secondaria", "abetina", "larici_cembreto",
+                 "mugheta", "pineta_silvestre", "pineta_nera"}
 
 DEFAULT_WEIGHTS = {
     "elevation": 1.0,
