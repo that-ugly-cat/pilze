@@ -45,27 +45,42 @@
     function load() { editor.value = byName[pick.value] || ''; msg.textContent = ''; msg.className = 'hint'; }
     pick.addEventListener('change', load); load();
 
-    const TEMPLATE = id => `species:
-  id: ${id}
-  common_name: ${id}          # nome comune (poi rigenera le mappe)
-  trophic_mode: mycorrhizal
+    const TEMPLATE = id => `# Profilo specie — ${id}
+# I valori qui sotto sono un ESEMPIO da personalizzare. Guida completa: menu in alto → Doc.
 
-  # host_genera: pesi [0-1] sui 20 tipi forestali CFI (legenda in config/crosswalk.yaml)
+species:
+  id: ${id}                     # = nome del file, non cambiare
+  common_name: ${id}            # nome comune (mostrato nel menu specie)
+  trophic_mode: mycorrhizal     # mycorrhizal | saprotrophic | facultative
+
+  # HOST — tipi di bosco in cui fa simbiosi, peso 0-1 (1 = ideale). I tipi non elencati = 0.
+  # Le 20 classi: pecceta pecceta_secondaria abetina larici_cembreto faggeta mugheta
+  #   pineta_silvestre pineta_nera castagneto querceto querceto_rovere querco_carpineto
+  #   orno_ostrieto lecceta acero_frassineto frassineto alneto altre_latifoglie
+  #   latifoglie_sempreverdi formazione_marginale
   host_genera:
-    faggeta: 0.5
+    faggeta: 1.0
+    castagneto: 0.7
 
+  # AMBIENTE FISICO — fattori morbidi; ometti quelli che non contano.
   static_envelope:
-    elevation_m: { min: 300, opt: [700, 1400], max: 1900 }
-    aspect: neutral
-    slope_deg: { opt: [5, 30] }
-    soil_ph: neutral
-    drainage: well_drained
+    elevation_m: { min: 300, opt: [700, 1400], max: 1900 }   # quota m: 0 sotto min, pieno su opt, 0 sopra max
+    slope_deg: { opt: [5, 30] }        # pendenza in gradi
+    aspect: neutral                    # warm (S, assolato) | cool (N, fresco) | neutral
+    soil_ph: neutral                   # acidic | neutral | calcareous | tolerant
+    drainage: well_drained             # well_drained | moist
 
-  extra_static_layers: []
+  # QUANDO fruttifica — mesi 1-12 (fuori stagione la readiness è ~0)
   phenology_months: [9, 10]
 
+  # SOGLIE METEO (readiness) — priori esperti, il learner li affina nel tempo
   dynamic_triggers:
-    rain_window_days: 15
+    rain_window_days: 15               # giorni su cui sommare la pioggia
+    cumulative_rain_mm: 40             # pioggia soglia sulla finestra (mm)
+    soil_temp_c: { min: 8, max: 18 }   # temperatura del suolo ottimale (°C)
+    thermal_shock_c: 4                 # calo di temp. del suolo che innesca (°C)
+    lag_days: { opt: [10, 20] }        # giorni dopo il trigger → buttata
+    moisture_floor: 0.20               # umidità suolo minima (m3/m3); sotto aborta
 `;
     document.getElementById('newbtn').addEventListener('click', () => {
       const id = (prompt('id specie — minuscole/underscore, es. boletus_reticulatus') || '').trim();
