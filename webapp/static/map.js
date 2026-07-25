@@ -11,6 +11,7 @@ document.getElementById('panel-toggle').addEventListener('click', () => {
   setTimeout(() => map.invalidateSize(), 260);      // ridisegna dopo la transizione
 });
 if (window.innerWidth <= 700) document.body.classList.add('nav-collapsed');
+const isTouch = window.matchMedia('(hover: none)').matches;   // niente hover (telefono) → tap
 
 const sel = document.getElementById('species');
 const status = document.getElementById('status');
@@ -151,6 +152,13 @@ map.on('mousemove', (ev) => {
   if (!tip._map) tip.addTo(map);
 });
 map.on('mouseout', hideTip);
+// mobile: al tap fuori da una cella pronte → mostra l'idoneità (o chiude tutto)
+if (isTouch) map.on('click', (ev) => {
+  const sc = document.getElementById('l-static').checked ? gridLayer.scoreAt(ev.latlng) : null;
+  if (sc == null) return hideTip();
+  tip.setLatLng(ev.latlng).setContent(`idoneità <b>${sc.toFixed(2)}</b>`);
+  if (!tip._map) tip.addTo(map);
+});
 
 // --- pronte oggi: fase della buttata per cella meteo (quadrati 2.2km) ------- //
 const STATE_COLOR = { in_fieri: '#8ecae6', pronto: '#0077cc', tardi: '#2a3a5c' };
@@ -182,7 +190,12 @@ async function loadPronte() {
       let html = `<b>${STATE_LABEL[p.state] || p.state}</b> · readiness ${p.readiness}`;
       if (p.eta != null) html += `<br>pronto fra ~${p.eta} gg`;
       if (p.days_past != null) html += `<br>buttata ~${p.days_past} gg fa`;
-      layer.bindTooltip(html, { sticky: true, className: 'pronte-tip' });
+      if (isTouch) {                                          // tap → popup nativo (singolo, si chiude da solo)
+        layer.bindPopup(html, { className: 'pronte-pop' });
+        layer.on('click', (e) => { L.DomEvent.stopPropagation(e); hideTip(); });
+      } else {
+        layer.bindTooltip(html, { sticky: true, className: 'pronte-tip' });   // hover desktop
+      }
     }
   }).addTo(map);
   applyPronteOpacity();

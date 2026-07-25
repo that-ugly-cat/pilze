@@ -192,6 +192,14 @@ def admin_regen_status(request: Request):
     return JSONResponse(regen.status())
 
 
+@app.get("/admin/docs", response_class=HTMLResponse)
+def docs_page(request: Request):
+    u = _is_admin(request)
+    if not u:
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "docs.html", {"user": u})
+
+
 # --- API (tutte richiedono login) ---------------------------------------- #
 def _guard(request: Request):
     return _user(request) is not None

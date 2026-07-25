@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze — doc profili</title>
+<link rel="stylesheet" href="{{ asset('style.css') }}">
+</head><body class="admin">
+  {% include "_topbar.html" %}
+  <div class="card wide doc">
+    <h1>Come si compila un profilo specie</h1>
+    <p class="hint">Ogni file <code>profiles/&lt;id&gt;.yaml</code> descrive una specie. Il motore è
+      <b>species-agnostic</b>: cambia solo il profilo. Tutti i valori sono <b>priori esperti</b> — il
+      punto di partenza, non verità assolute.</p>
+
+    <h2>Come tutto si combina</h2>
+    <p>La predizione di una cella per una specie è:</p>
+    <p><code>predizione = idoneità_statica × readiness_dinamica</code></p>
+    <ul>
+      <li><b>idoneità statica</b> (il <i>dove</i>) = <code>host</code> (gate: niente ospite → 0) ×
+        media-geometrica di elevazione, pendenza, esposizione, pH, drenaggio × gate «è bosco?».</li>
+      <li><b>readiness dinamica</b> (il <i>quando</i>) = gate(fenologia, umidità) ×
+        media-geometrica di pioggia, temperatura del suolo, shock termico, timing.</li>
+    </ul>
+    <p class="hint">I fattori graduati si combinano <b>morbidi</b> (media geometrica): un fattore
+      mediocre abbassa ma non azzera. I <b>gate</b> invece azzerano (host assente, fuori stagione,
+      suolo troppo secco, fuori bosco).</p>
+
+    <hr>
+    <h2>Identità</h2>
+    <table>
+      <tr><th>campo</th><th>valori</th><th>note</th></tr>
+      <tr><td><code>id</code></td><td>nome scientifico in <code>kebab_case</code></td>
+        <td>es. <code>boletus_edulis</code>. Deve coincidere col nome del file.</td></tr>
+      <tr><td><code>common_name</code></td><td>testo libero</td><td>nome comune, mostrato nel menu.</td></tr>
+      <tr><td><code>trophic_mode</code></td><td><code>mycorrhizal</code> · <code>saprotrophic</code> · <code>facultative</code></td>
+        <td>solo le micorriziche usano <code>host_genera</code> come gate.</td></tr>
+      <tr><td><code>similar_to</code></td><td>lista di <code>id</code></td><td>opzionale, per il pooling futuro.</td></tr>
+    </table>
+
+    <hr>
+    <h2>host_genera — l'albero ospite <span class="badge">gate</span></h2>
+    <p>Dizionario <code>classe: peso</code> (peso <code>0–1</code>). Ogni cella ha <b>un</b> tipo di
+      bosco (dalla carta forestale CFI2020); il suo peso nel profilo è l'affinità della specie con
+      quel tipo. <b>1.0</b> = ideale, <b>0.x</b> = secondario, <b>assente</b> = non ospite (0).
+      Se la cella è micorrizica ma nessun tipo compatibile → idoneità 0.</p>
+    <p>Le <b>20 classi</b> (tipi forestali CFI):</p>
+    <table>
+      <tr><th>conifere</th><th>latifoglie</th></tr>
+      <tr><td><code>pecceta</code> — abete rosso</td><td><code>faggeta</code> — faggio</td></tr>
+      <tr><td><code>pecceta_secondaria</code> — abete rosso (sottotipo)</td><td><code>castagneto</code> — castagno</td></tr>
+      <tr><td><code>abetina</code> — abete bianco</td><td><code>querceto</code> — querce</td></tr>
+      <tr><td><code>larici_cembreto</code> — larice + cembro</td><td><code>querceto_rovere</code> — rovere</td></tr>
+      <tr><td><code>mugheta</code> — pino mugo</td><td><code>querco_carpineto</code> — querce + carpino</td></tr>
+      <tr><td><code>pineta_silvestre</code> — pino silvestre</td><td><code>orno_ostrieto</code> — orniello + carpino nero</td></tr>
+      <tr><td><code>pineta_nera</code> — pino nero</td><td><code>lecceta</code> — leccio</td></tr>
+      <tr><td></td><td><code>acero_frassineto</code> · <code>frassineto</code> · <code>alneto</code></td></tr>
+      <tr><td></td><td><code>altre_latifoglie</code> · <code>latifoglie_sempreverdi</code> · <code>formazione_marginale</code></td></tr>
+    </table>
+    <p class="hint">La legenda completa (codici CFI → classe) è in <code>config/crosswalk.yaml</code>.
+      Il <b>canopy</b> (Sentinel-2) declassa a parte gli ospiti conifera dove la chioma è morta (Vaia/bostrico).</p>
+
+    <hr>
+    <h2>static_envelope — l'ambiente fisico</h2>
+    <p>Fattori <b>graduati</b> (match morbido, nessun salto ai bordi). Un fattore <b>omesso</b> = neutro
+      (non penalizza).</p>
+    <table>
+      <tr><th>campo</th><th>forma / valori</th><th>note</th></tr>
+      <tr><td><code>elevation_m</code></td><td><code>{ min, opt: [a, b], max }</code></td>
+        <td>trapezoide: 0 sotto <code>min</code>, sale a 1 su [min,a], pieno su [a,b], scende a 0 su [b,max].</td></tr>
+      <tr><td><code>slope_deg</code></td><td><code>{ opt: [a, b] }</code></td>
+        <td><code>min</code>/<code>max</code> opzionali (margine ~10° se assenti).</td></tr>
+      <tr><td><code>aspect</code></td><td><code>warm</code> · <code>cool</code> · <code>neutral</code></td>
+        <td>esposizione preferita (S assolato / N fresco / indifferente).</td></tr>
+      <tr><td><code>soil_ph</code></td><td><code>acidic</code> · <code>neutral</code> · <code>calcareous</code> · <code>tolerant</code></td>
+        <td><code>tolerant</code> = va bene su tutti i pH.</td></tr>
+      <tr><td><code>drainage</code></td><td><code>well_drained</code> · <code>moist</code></td>
+        <td>drenaggio preferito del suolo.</td></tr>
+    </table>
+    <p class="hint">I gate a copertura completa NON stanno nel profilo (automatici): «è bosco?»
+      (WorldCover) azzera fuori dal bosco; il canopy declassa le conifere a chioma morta.</p>
+
+    <hr>
+    <h2>phenology_months — quando fruttifica <span class="badge">gate</span></h2>
+    <p>Lista di mesi <code>1–12</code>, es. <code>[8, 9, 10, 11]</code>. Fuori da questi mesi la readiness
+      è ~0 (con una rampa morbida ai mesi adiacenti, per non spaccare al confine).</p>
+
+    <hr>
+    <h2>dynamic_triggers — le soglie meteo (readiness)</h2>
+    <table>
+      <tr><th>campo</th><th>forma / valori</th><th>note</th></tr>
+      <tr><td><code>rain_window_days</code></td><td>intero (es. <code>15</code>)</td>
+        <td>giorni su cui sommare la pioggia.</td></tr>
+      <tr><td><code>cumulative_rain_mm</code></td><td>mm (es. <code>45</code>)</td>
+        <td>pioggia cumulata soglia sulla finestra (pieno a questa, metà ~15 mm sotto).</td></tr>
+      <tr><td><code>soil_temp_c</code></td><td><code>{ min, max }</code> °C</td>
+        <td>banda di temperatura del suolo ottimale.</td></tr>
+      <tr><td><code>thermal_shock_c</code></td><td>°C (es. <code>5</code>)</td>
+        <td>entità del calo di temperatura del <b>suolo</b> che innesca la buttata.</td></tr>
+      <tr><td><code>moisture_floor</code></td><td>m³/m³ (es. <code>0.22</code>)</td>
+        <td><span class="badge">gate</span> sotto questa umidità del suolo la buttata aborta → 0.</td></tr>
+      <tr><td><code>lag_days</code></td><td><code>{ opt: [a, b] }</code> giorni</td>
+        <td>ritardo dopo il trigger in cui avviene la buttata. È la finestra <b>«pronto»</b>:
+          prima = <i>in fieri</i>, dentro = <i>pronto</i>, dopo (fino a 2·b) = <i>tardi</i>.</td></tr>
+    </table>
+
+    <hr>
+    <h2>Esempio minimo</h2>
+    <pre>species:
+  id: boletus_edulis
+  common_name: porcino
+  trophic_mode: mycorrhizal
+
+  host_genera:            # solo i tipi in cui fa simbiosi, peso = affinità
+    pecceta: 1.0
+    faggeta: 0.9
+    castagneto: 0.7
+
+  static_envelope:
+    elevation_m: { min: 500, opt: [800, 1600], max: 2000 }
+    aspect: cool
+    slope_deg: { opt: [5, 30] }
+    soil_ph: acidic
+    drainage: well_drained
+
+  phenology_months: [8, 9, 10, 11]
+
+  dynamic_triggers:
+    rain_window_days: 15
+    cumulative_rain_mm: 45
+    soil_temp_c: { min: 8, max: 18 }
+    thermal_shock_c: 5
+    lag_days: { opt: [10, 20] }
+    moisture_floor: 0.22</pre>
+
+    <hr>
+    <h2>Dopo aver salvato</h2>
+    <ul>
+      <li>Campi <b>statici</b> (<code>host_genera</code>, <code>static_envelope</code>, <code>trophic_mode</code>)
+        → <b>rigenera le mappe</b> (bottone in <a href="/admin/profiles">Profili</a>).</li>
+      <li>Campi <b>dinamici</b> (<code>dynamic_triggers</code>, <code>phenology_months</code>)
+        → li ricalcola il poller ogni notte, nessuna rigenerazione.</li>
+      <li><code>common_name</code> → solo visualizzazione.</li>
+    </ul>
+  </div>
+</body></html>

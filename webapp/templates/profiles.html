@@ -4,15 +4,7 @@
 <title>Pilze — profili</title>
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head><body class="admin">
-  <div class="topbar">
-    <span class="tb-brand">🍄 Pilze</span>
-    <a href="/admin"{% if request.url.path == '/admin' %} class="active"{% endif %}>Utenti</a>
-    <a href="/admin/profiles"{% if request.url.path == '/admin/profiles' %} class="active"{% endif %}>Profili</a>
-    <span class="tb-sp"></span>
-    <a href="/">← mappa</a>
-    <span class="tb-user">{{ user.username }}</span>
-    <a href="/logout">esci</a>
-  </div>
+  {% include "_topbar.html" %}
   <div class="card wide">
     <h1>Profili specie</h1>
 

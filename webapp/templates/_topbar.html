@@ -1,0 +1,10 @@
+<div class="topbar">
+  <span class="tb-brand">🍄 Pilze</span>
+  <a href="/admin"{% if request.url.path == '/admin' %} class="active"{% endif %}>Utenti</a>
+  <a href="/admin/profiles"{% if request.url.path == '/admin/profiles' %} class="active"{% endif %}>Profili</a>
+  <a href="/admin/docs"{% if request.url.path == '/admin/docs' %} class="active"{% endif %}>Doc</a>
+  <span class="tb-sp"></span>
+  <a href="/">← mappa</a>
+  <span class="tb-user">{{ user.username }}</span>
+  <a href="/logout">esci</a>
+</div>

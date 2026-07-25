@@ -33,7 +33,8 @@ label.slabel span { color: #a01d78; font-weight: 600; }
 .states span { display: flex; align-items: center; gap: 4px; }
 .states i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 .leaflet-tooltip.pronte-tip { font-size: 12px; padding: 3px 7px; }
-.leaflet-tooltip.pronte-tip b { color: #0077cc; }
+.leaflet-tooltip.pronte-tip b, .pronte-pop b { color: #0077cc; }
+.pronte-pop .leaflet-popup-content { font-size: 13px; margin: 9px 12px; line-height: 1.4; }
 .pilze-grid { position: absolute; pointer-events: none; }
 .leaflet-tooltip.grid-tip { font-size: 12px; padding: 2px 7px; }
 .leaflet-tooltip.grid-tip b { color: #d61f96; }
@@ -74,5 +75,17 @@ th, td { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
   border-radius: 6px; padding: 8px; font-size: 11px; white-space: pre-wrap; margin: 8px 0 0; }
 .card hr { border: 0; border-top: 1px solid #e2e6dc; margin: 18px 0; width: 100%; }
 button:disabled { opacity: .5; cursor: default; }
+.doc { line-height: 1.5; }
+.doc h2 { font-size: 17px; margin: 18px 0 6px; }
+.doc code { background: #eef1ea; padding: 1px 5px; border-radius: 4px; font-size: 90%; }
+.doc pre { background: #f6f7f4; border: 1px solid #e2e6dc; border-radius: 6px; padding: 12px;
+  overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+.doc pre code { background: none; padding: 0; }
+.doc table { font-size: 13px; }
+.doc table code { white-space: nowrap; }
+.doc .badge { display: inline-block; font-size: 11px; font-weight: 600; color: #a33;
+  background: #fbe9e9; border-radius: 4px; padding: 1px 6px; vertical-align: middle; }
+.doc ul { margin: 6px 0; padding-left: 20px; }
+.doc ul li { margin: 3px 0; }
 .legend { font-size: 12px; }
 .legend i { width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
