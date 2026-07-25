@@ -30,6 +30,10 @@ MAPS_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
 # (cortesia anti-burst). Con questi valori il poll dell'intera union chiude in ~1 min.
 BATCH = int(os.environ.get("PILZE_METEO_BATCH", "100"))
 PACE_S = float(os.environ.get("PILZE_METEO_PACE_S", "1.0"))
+# Giorni di storia del backfill iniziale. 35 gg × migliaia di celle sfonda il free tier
+# di Open-Meteo (pesa per località×giorni): 21 copre la finestra di pioggia; il poll
+# giornaliero (past_days=3) costruisce in avanti il resto. Tarabile.
+BACKFILL_DAYS = int(os.environ.get("PILZE_METEO_BACKFILL_DAYS", "21"))
 
 
 def all_species() -> list[str]:
@@ -140,11 +144,29 @@ def main(argv):
         for cid, la, lo in candidate_meteo_cells(tif):
             cells_map[cid] = (la, lo)                           # dedup fra specie
     cells = [(cid, la, lo) for cid, (la, lo) in cells_map.items()]
+    print(f"specie: {', '.join(sp)}  |  celle candidate: {len(cells)}")
+
+    days = 3 if daily else BACKFILL_DAYS
+    if not daily:
+        # backfill INCREMENTALE: salta le celle che hanno già abbastanza storia recente,
+        # così un run interrotto (rate limit) riprende dalle mancanti senza ri-scaricare.
+        conn = meteo.connect()
+        status = meteo.cell_status(conn)
+        conn.close()
+        recent = (date.today() - timedelta(days=4)).isoformat()
+        min_days = max(BACKFILL_DAYS - 3, 14)
+        skip = {cid for cid, (n, mx) in status.items() if n >= min_days and mx and mx >= recent}
+        cells = [c for c in cells if c[0] not in skip]
+        print(f"backfill {BACKFILL_DAYS} gg  |  già complete: {len(skip)}  |  da scaricare: {len(cells)}")
+        if not cells:
+            print("archivio già completo, niente da scaricare")
+            return
+    else:
+        print("poll giornaliero (3 gg)")
+
     n_batches = (len(cells) + BATCH - 1) // BATCH
-    print(f"specie: {', '.join(sp)}")
-    print(f"celle meteo candidate: {len(cells)}  |  {'poll giornaliero' if daily else 'backfill iniziale'}"
-          f"  |  batch {BATCH} → {n_batches} richieste")
-    n = poll(cells, past_days=3 if daily else 35, pace_s=PACE_S)
+    print(f"batch {BATCH} → {n_batches} richieste")
+    n = poll(cells, past_days=days, pace_s=PACE_S)
     print(f"archiviate: {n}/{len(cells)} celle")
     gap_report(cells)
 

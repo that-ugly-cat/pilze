@@ -126,6 +126,14 @@ def read_daily(cell_id: str, conn: sqlite3.Connection) -> list:
     return [(date.fromisoformat(d), r, st, sm) for d, r, st, sm in cur.fetchall()]
 
 
+def cell_status(conn: sqlite3.Connection) -> dict:
+    """{meteo_cell_id: (n_giorni_distinti, max_date_iso)} per tutte le celle in archivio.
+    Serve al backfill incrementale: sa cosa abbiamo già e chiede solo il resto."""
+    cur = conn.execute("SELECT meteo_cell_id, COUNT(DISTINCT date), MAX(date) "
+                       "FROM meteo GROUP BY meteo_cell_id")
+    return {cid: (n, mx) for cid, n, mx in cur.fetchall()}
+
+
 if __name__ == "__main__":
     import sys
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
