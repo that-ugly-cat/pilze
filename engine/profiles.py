@@ -41,6 +41,7 @@ def seed_profiles(src: Path | str = DEFAULT_PROFILES_DIR,
     return n
 
 VALID_TROPHIC = {"mycorrhizal", "saprotrophic", "facultative"}
+VALID_HABITAT = {"forest", "grassland"}   # quale gate di copertura (WorldCover) applica
 # Classi host = le 20 categorie forestali CFI2020 (nomi leggibili). Devono restare
 # allineate a target_classes in config/crosswalk.yaml.
 CROSSWALK_CLASSES = {
@@ -57,6 +58,7 @@ class SpeciesProfile:
     id: str
     common_name: str
     trophic_mode: str
+    habitat: str = "forest"          # forest | grassland — gate di copertura (WorldCover)
     similar_to: list[str] = field(default_factory=list)
     host_genera: dict[str, float] = field(default_factory=dict)
     static_envelope: dict = field(default_factory=dict)
@@ -78,6 +80,8 @@ class SpeciesProfile:
         errs: list[str] = []
         if self.trophic_mode not in VALID_TROPHIC:
             errs.append(f"{self.id}: trophic_mode '{self.trophic_mode}' non valido")
+        if self.habitat not in VALID_HABITAT:
+            errs.append(f"{self.id}: habitat '{self.habitat}' non valido (forest | grassland)")
         for g in self.host_genera:
             if g not in CROSSWALK_CLASSES:
                 errs.append(f"{self.id}: host '{g}' non è una classe del crosswalk (§3.3)")
@@ -95,6 +99,7 @@ def _from_dict(d: dict) -> SpeciesProfile:
         id=s["id"],
         common_name=s.get("common_name", s["id"]),
         trophic_mode=s.get("trophic_mode", "mycorrhizal"),
+        habitat=s.get("habitat", "forest"),
         similar_to=s.get("similar_to", []) or [],
         host_genera=s.get("host_genera", {}) or {},
         static_envelope=s.get("static_envelope", {}) or {},

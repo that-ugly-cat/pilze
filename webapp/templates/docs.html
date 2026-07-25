@@ -33,6 +33,9 @@
       <tr><td><code>common_name</code></td><td>testo libero</td><td>nome comune, mostrato nel menu.</td></tr>
       <tr><td><code>trophic_mode</code></td><td><code>mycorrhizal</code> · <code>saprotrophic</code> · <code>facultative</code></td>
         <td>solo le micorriziche usano <code>host_genera</code> come gate.</td></tr>
+      <tr><td><code>habitat</code></td><td><code>forest</code> (default) · <code>grassland</code></td>
+        <td>quale gate di copertura (WorldCover): bosco o prato. Le saprotrofe di prato
+          usano <code>grassland</code> (+ <code>trophic_mode: saprotrophic</code>, senza host_genera).</td></tr>
       <tr><td><code>similar_to</code></td><td>lista di <code>id</code></td><td>opzionale, per il pooling futuro.</td></tr>
     </table>
 

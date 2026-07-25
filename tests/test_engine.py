@@ -85,6 +85,25 @@ def test_forest_fraction_gate():
     assert abs(static_suitability(edulis, {**cell, "forest_fraction": 0.5}) - full * 0.5) < 1e-6
 
 
+def test_habitat_gate_prato_vs_bosco():
+    from engine.profiles import _from_dict
+    # saprotrofo di prato: gate = grassland_fraction (non forest_fraction)
+    prato = _from_dict({"species": {"id": "test_prato", "common_name": "prataiolo",
+                                    "trophic_mode": "saprotrophic", "habitat": "grassland",
+                                    "static_envelope": {"elevation_m": {"opt": [100, 1000]}}}})
+    assert prato.validate() == []
+    grass = {"elevation_m": 400, "forest_fraction": 0.0, "grassland_fraction": 0.9}
+    wood = {"elevation_m": 400, "forest_fraction": 0.9, "grassland_fraction": 0.0}
+    assert static_suitability(prato, grass) > 0.5      # sul prato: alto
+    assert static_suitability(prato, wood) == 0.0      # in bosco: 0 (grassland_fraction 0)
+    # micorrizica di bosco: comportamento opposto (gate forest_fraction)
+    edulis = REG["boletus_edulis"]                     # opt 800-1600
+    hb = {"host_class": "pecceta", "elevation_m": 1000, "aspect": "cool", "soil_ph": "acidic",
+          "drainage": "well_drained", "slope_deg": 15}
+    assert static_suitability(edulis, {**hb, "forest_fraction": 0.9}) > 0.0
+    assert static_suitability(edulis, {**hb, "forest_fraction": 0.0}) == 0.0
+
+
 def test_combiner_e_prodotto():
     aereus = REG["boletus_aereus"]
     cell = {"host_class": "querceto", "elevation_m": 400, "aspect": "warm",

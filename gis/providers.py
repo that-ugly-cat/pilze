@@ -377,10 +377,12 @@ class CanopyProvider(FeatureProvider):
 
 
 class WorldCoverProvider(FeatureProvider):
-    """Frazione di copertura arborea da ESA WorldCover 10 m (spec §3.1) → forest_fraction.
+    """Frazioni di copertura da ESA WorldCover 10 m (spec §3.1): forest_fraction (tree cover,
+    classe 10) e grassland_fraction (prato, classe 30).
 
-    Gate "è bosco?" a copertura COMPLETA: legge una finestra ~500 m attorno al punto e
-    calcola la frazione di pixel classe 10 (tree cover). In static_suitability moltiplica
+    Gate "è l'habitat giusto?" a copertura COMPLETA: legge una finestra ~500 m attorno al
+    punto e calcola le frazioni di pixel per classe. In static_suitability una delle due
+    (secondo profile.habitat) moltiplica
     il punteggio → fuori-bosco 0, dentro-bosco pieno, con gradazione. Risolve l'over-
     predict dove i layer genere (TN parziale) lasciano host-sconosciuto, senza bucare il TN.
     Windowed read (memory-safe: i tile sono ~1 Gpx, non si caricano interi).
@@ -409,7 +411,8 @@ class WorldCoverProvider(FeatureProvider):
             nvalid = int(valid.sum())
             if nvalid == 0:
                 return None
-            return {"forest_fraction": float((arr == 10).sum()) / nvalid}
+            return {"forest_fraction": float((arr == 10).sum()) / nvalid,        # classe 10 = tree cover
+                    "grassland_fraction": float((arr == 30).sum()) / nvalid}     # classe 30 = grassland
         return None
 
 

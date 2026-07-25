@@ -87,10 +87,13 @@ def static_suitability(profile: SpeciesProfile, cell: dict,
     }
     host = host_membership(profile, cell)
     score = host * _weighted_geomean(factors, weights)     # host = gate, env = graded
-    # gate "è bosco?" a copertura completa (WorldCover): fuori-bosco → 0 (spec §3.1).
-    # Assente → 1.0 (nessun gate), così resta valido senza il layer.
-    score *= float(cell.get("forest_fraction", 1.0))
+    # gate "è l'habitat giusto?" a copertura completa (WorldCover): forest_fraction per le
+    # specie di bosco (micorriziche), grassland_fraction per i saprotrofi di prato — scelto
+    # da profile.habitat. Fuori dall'habitat → 0. Assente → 1.0 (nessun gate).
+    gate_key = "grassland_fraction" if profile.habitat == "grassland" else "forest_fraction"
+    gate = float(cell.get(gate_key, 1.0))
+    score *= gate
 
     if breakdown:
-        return score, {"host": host, "forest_fraction": cell.get("forest_fraction", 1.0), **factors}
+        return score, {"host": host, "habitat_gate": gate, **factors}
     return score
