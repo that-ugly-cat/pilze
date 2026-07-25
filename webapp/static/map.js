@@ -15,7 +15,7 @@ const isTouch = window.matchMedia('(hover: none)').matches;   // niente hover (t
 
 const sel = document.getElementById('species');
 const status = document.getElementById('status');
-let pronteLayer = null, pinsLayer = null;
+let pronteLayer = null, pinsLayer = null, topLayer = null;
 
 function setStatus(t) { status.textContent = t; }
 
@@ -221,8 +221,32 @@ async function loadPins() {
   }).addTo(map);
 }
 
+// --- trova spot migliori --------------------------------------------------- //
+function clearTopSpots() {
+  if (topLayer) { map.removeLayer(topLayer); topLayer = null; }
+  document.getElementById('find-spots').textContent = '★ Trova spot migliori';
+}
+async function findTopSpots() {
+  if (topLayer) { clearTopSpots(); setStatus(''); return; }        // toggle: nascondi
+  const s = document.getElementById('l-static').checked, d = document.getElementById('l-pronte').checked;
+  const mode = (s && d) ? 'both' : s ? 'static' : d ? 'dynamic' : null;
+  if (!mode) { setStatus('attiva idoneità statica o dinamica per cercare gli spot'); return; }
+  setStatus('cerco gli spot migliori…');
+  const gj = await (await fetch(`/api/top/${sel.value}?mode=${mode}`)).json();
+  if (!gj.features.length) { setStatus("nessuno spot (dinamica: manca l'archivio meteo?)"); return; }
+  topLayer = L.geoJSON(gj, {
+    pointToLayer: (f, ll) => L.circleMarker(ll, {
+      radius: 7, color: '#8a5b00', weight: 2, fillColor: '#ffd400', fillOpacity: 0.95
+    }).bindPopup(`<b>spot</b> · score ${f.properties.score}<br>idoneità ${f.properties.idoneita} · readiness ${f.properties.readiness}`)
+  }).addTo(map);
+  const label = { static: 'statica', dynamic: 'dinamica', both: 'statica × dinamica' }[mode];
+  setStatus(`top ${gj.features.length} spot (${label})`);
+  document.getElementById('find-spots').textContent = '✕ Nascondi spot';
+}
+document.getElementById('find-spots').addEventListener('click', findTopSpots);
+
 function reloadAll() { loadStatic(); loadPronte(); loadPins(); }
-sel.addEventListener('change', () => { loadStatic(); loadPronte(); });
+sel.addEventListener('change', () => { loadStatic(); loadPronte(); clearTopSpots(); });
 document.getElementById('l-static').addEventListener('change', loadStatic);
 document.getElementById('l-pronte').addEventListener('change', loadPronte);
 document.getElementById('pronte-op').addEventListener('input', () => {

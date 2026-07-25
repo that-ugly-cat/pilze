@@ -38,6 +38,8 @@ label.slabel span { color: #a01d78; font-weight: 600; }
 .pilze-grid { position: absolute; pointer-events: none; }
 .leaflet-tooltip.grid-tip { font-size: 12px; padding: 2px 7px; }
 .leaflet-tooltip.grid-tip b { color: #d61f96; }
+#find-spots { width: 100%; margin: 6px 0 3px; }
+#find-hint { margin: 0 0 6px; }
 #status { font-size: 12px; color: #667; min-height: 18px; }
 .spacer { flex: 1; }
 .foot { font-size: 12px; color: #556; }

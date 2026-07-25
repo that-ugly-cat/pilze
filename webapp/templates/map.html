@@ -22,7 +22,7 @@
           <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.7"></label>
         <div class="ramp"><span>bassa</span><span class="ramp-bar"></span><span>alta</span></div>
       </div>
-      <label><input type="checkbox" id="l-pronte"> Pronte oggi</label>
+      <label><input type="checkbox" id="l-pronte"> Idoneità dinamica</label>
       <div id="pronte-ctl" class="off">
         <label class="slabel">Opacità <span id="pronte-op-val">60%</span>
           <input type="range" id="pronte-op" min="0" max="1" step="0.05" value="0.6"></label>
@@ -34,6 +34,8 @@
       </div>
       <label><input type="checkbox" id="l-pins" checked> Ritrovamenti</label>
     </fieldset>
+    <button id="find-spots" type="button">★ Trova spot migliori</button>
+    <p class="hint" id="find-hint">Top 50 per la specie: statica, dinamica o entrambe secondo i layer attivi.</p>
     <div id="status"></div>
     <div class="spacer"></div>
     <div class="foot">

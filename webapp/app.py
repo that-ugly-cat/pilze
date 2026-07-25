@@ -243,6 +243,20 @@ def pronte(request: Request, species: str):
     return JSONResponse(json.loads(f.read_text(encoding="utf-8")))
 
 
+@app.get("/api/top/{species}")
+def top_spots_api(request: Request, species: str, mode: str = "both"):
+    if not _guard(request):
+        return Response(status_code=401)
+    if mode not in ("static", "dynamic", "both"):
+        mode = "both"
+    from gis.predict_today import top_spots
+    feats = [{"type": "Feature",
+              "properties": {"score": s["score"], "idoneita": s["idoneita"], "readiness": s["readiness"]},
+              "geometry": {"type": "Point", "coordinates": [s["lon"], s["lat"]]}}
+             for s in top_spots(species, mode)]
+    return JSONResponse({"type": "FeatureCollection", "features": feats, "mode": mode})
+
+
 @app.get("/api/pins")
 def pins(request: Request):
     if not _guard(request):

@@ -19,7 +19,7 @@ import numpy as np
 import rasterio
 from pyproj import Transformer
 
-from engine.dynamic_scorer import readiness_state
+from engine.dynamic_scorer import readiness, readiness_state
 from engine.profiles import load_profiles
 
 from . import grid, meteo
@@ -70,6 +70,58 @@ def predict(species: str, static_thr: float = 0.4):
     print(f"{species}: celle meteo candidate {len(cand)}  |  "
           f"in_fieri {counts['in_fieri']} · pronto {counts['pronto']} · tardi {counts['tardi']}")
     return counts
+
+
+def top_spots(species: str, mode: str = "both", k: int = 50, static_thr: float = 0.4):
+    """Top-k spot per una specie. mode: 'static' (idoneità), 'dynamic' (readiness della
+    cella meteo), 'both' (prodotto). Ritorna [{lat, lon, idoneita, readiness, score}] ordinati."""
+    import heapq
+    prof = load_profiles()[species]
+    tif = MAPS_DIR / f"idoneita_{species}.tif"
+    if not tif.exists():
+        return []
+    with rasterio.open(tif) as ds:
+        a = ds.read(1); tr = ds.transform; crs = ds.crs
+    cfg = grid._config(); mstep = float(cfg["meteo_step_m"])
+    same = str(crs).upper().endswith(cfg["crs"].split(":")[-1])
+    to_grid = None if same else Transformer.from_crs(crs, cfg["crs"], always_xy=True)
+    to_wgs = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+
+    need_dyn = mode in ("dynamic", "both")
+    conn = meteo.connect() if need_dyn else None
+    read_cache: dict[str, float] = {}
+
+    def readiness_at(gx, gy):                       # gx,gy già in metri della griglia
+        mcid = f"m{int(mstep)}_{math.floor(gx / mstep)}_{math.floor(gy / mstep)}"
+        if mcid not in read_cache:
+            daily = meteo.read_daily(mcid, conn)
+            read_cache[mcid] = readiness(prof, meteo.features_from_daily(prof, daily)) if daily else 0.0
+        return read_cache[mcid]
+
+    dedup_m = 1500.0                               # ≤ 1 spot per ~1.5 km → spot distinti
+    best: dict = {}                                # coarse-cell → miglior candidato
+    rows, cols = np.where(a > static_thr)
+    for r, c in zip(rows.tolist(), cols.tolist()):
+        ido = float(a[r, c])
+        x = tr.c + (c + 0.5) * tr.a; y = tr.f + (r + 0.5) * tr.e
+        gx, gy = to_grid.transform(x, y) if to_grid else (x, y)   # metri nella griglia
+        rd = readiness_at(gx, gy) if need_dyn else 1.0
+        score = ido if mode == "static" else (rd if mode == "dynamic" else ido * rd)
+        if score <= 0:
+            continue
+        key = (math.floor(gx / dedup_m), math.floor(gy / dedup_m))
+        item = (score, ido, rd, x, y)
+        if key not in best or item > best[key]:
+            best[key] = item
+    if conn:
+        conn.close()
+
+    out = []
+    for score, ido, rd, x, y in heapq.nlargest(k, best.values()):
+        lon, lat = to_wgs.transform(x, y)
+        out.append({"lat": round(lat, 5), "lon": round(lon, 5), "idoneita": round(ido, 3),
+                    "readiness": round(rd, 3), "score": round(score, 3)})
+    return out
 
 
 if __name__ == "__main__":
