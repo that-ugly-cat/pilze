@@ -16,13 +16,14 @@
     <p><code>predizione = idoneità_statica × readiness_dinamica</code></p>
     <ul>
       <li><b>idoneità statica</b> (il <i>dove</i>) = <code>host</code> (gate: niente ospite → 0) ×
-        media-geometrica di elevazione, pendenza, esposizione, pH, drenaggio × gate «è bosco?».</li>
+        media-geometrica di elevazione, pendenza, esposizione, pH, drenaggio × gate <b>habitat</b>
+        (bosco o prato, secondo il campo <code>habitat</code>).</li>
       <li><b>readiness dinamica</b> (il <i>quando</i>) = gate(fenologia, umidità) ×
         media-geometrica di pioggia, temperatura del suolo, shock termico, timing.</li>
     </ul>
     <p class="hint">I fattori graduati si combinano <b>morbidi</b> (media geometrica): un fattore
       mediocre abbassa ma non azzera. I <b>gate</b> invece azzerano (host assente, fuori stagione,
-      suolo troppo secco, fuori bosco).</p>
+      suolo troppo secco, fuori dall'habitat giusto).</p>
 
     <hr>
     <h2>Identità</h2>
@@ -78,8 +79,9 @@
       <tr><td><code>drainage</code></td><td><code>well_drained</code> · <code>moist</code></td>
         <td>drenaggio preferito del suolo.</td></tr>
     </table>
-    <p class="hint">I gate a copertura completa NON stanno nel profilo (automatici): «è bosco?»
-      (WorldCover) azzera fuori dal bosco; il canopy declassa le conifere a chioma morta.</p>
+    <p class="hint">Il gate di copertura (WorldCover, completo) NON sta nel profilo ma dipende da
+      <code>habitat</code>: per le specie di bosco azzera fuori dal bosco, per quelle di prato
+      fuori dal prato. Il canopy (Sentinel-2) declassa a parte le conifere a chioma morta.</p>
 
     <hr>
     <h2>phenology_months — quando fruttifica <span class="badge">gate</span></h2>
@@ -106,7 +108,8 @@
     </table>
 
     <hr>
-    <h2>Esempio minimo</h2>
+    <h2>Esempi</h2>
+    <p class="hint">Micorrizica di <b>bosco</b> (porcino):</p>
     <pre>species:
   id: boletus_edulis
   common_name: porcino
@@ -134,10 +137,28 @@
     lag_days: { opt: [10, 20] }
     moisture_floor: 0.22</pre>
 
+    <p class="hint">Saprotrofo di <b>prato</b> (coprino) — <code>habitat: grassland</code>, senza <code>host_genera</code>:</p>
+    <pre>species:
+  id: coprinus_comatus
+  common_name: coprino chiomato
+  trophic_mode: saprotrophic
+  habitat: grassland          # gate = prato (non bosco), niente host_genera
+  static_envelope:
+    elevation_m: { opt: [0, 1200], max: 1600 }
+    drainage: moist
+    soil_ph: tolerant
+  phenology_months: [5, 6, 9, 10, 11]
+  dynamic_triggers:
+    rain_window_days: 10
+    cumulative_rain_mm: 25
+    soil_temp_c: { min: 8, max: 22 }
+    lag_days: { opt: [4, 10] }
+    moisture_floor: 0.20</pre>
+
     <hr>
     <h2>Dopo aver salvato</h2>
     <ul>
-      <li>Campi <b>statici</b> (<code>host_genera</code>, <code>static_envelope</code>, <code>trophic_mode</code>)
+      <li>Campi <b>statici</b> (<code>host_genera</code>, <code>static_envelope</code>, <code>trophic_mode</code>, <code>habitat</code>)
         → <b>rigenera le mappe</b> (bottone in <a href="/admin/profiles">Profili</a>).</li>
       <li>Campi <b>dinamici</b> (<code>dynamic_triggers</code>, <code>phenology_months</code>)
         → li ricalcola il poller ogni notte, nessuna rigenerazione.</li>

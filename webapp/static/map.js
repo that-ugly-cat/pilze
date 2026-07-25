@@ -166,6 +166,9 @@ const STATE_LABEL = { in_fieri: 'in fieri', pronto: 'pronto', tardi: 'tardi' };
 map.createPane('pronte');
 map.getPane('pronte').style.zIndex = 450;                 // sopra il fucsia, sotto i pin
 const pronteRenderer = L.canvas({ pane: 'pronte' });
+map.createPane('topspots');
+map.getPane('topspots').style.zIndex = 620;               // spot oro sopra TUTTI i layer
+const topRenderer = L.canvas({ pane: 'topspots' });
 let pronteReq = 0;
 
 function applyPronteOpacity() {
@@ -235,7 +238,9 @@ async function findTopSpots() {
   const gj = await (await fetch(`/api/top/${sel.value}?mode=${mode}`)).json();
   if (!gj.features.length) { setStatus("nessuno spot (dinamica: manca l'archivio meteo?)"); return; }
   topLayer = L.geoJSON(gj, {
+    pane: 'topspots',
     pointToLayer: (f, ll) => L.circleMarker(ll, {
+      renderer: topRenderer, pane: 'topspots',
       radius: 7, color: '#8a5b00', weight: 2, fillColor: '#ffd400', fillOpacity: 0.95
     }).bindPopup(`<b>spot</b> · score ${f.properties.score}<br>idoneità ${f.properties.idoneita} · readiness ${f.properties.readiness}`)
   }).addTo(map);
