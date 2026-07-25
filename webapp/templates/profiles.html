@@ -70,7 +70,7 @@
     document.getElementById('newbtn').addEventListener('click', () => {
       const id = (prompt('id specie — minuscole/underscore, es. boletus_reticulatus') || '').trim();
       if (!id) return;
-      if (!/^[a-z0-9_]+$/.test(id)) { msg.textContent = '✗ id non valido (solo a-z, 0-9, _)'; msg.className = 'bad'; return; }
+      if (!/^[a-z0-9_]+$/.test(id)) { msg.textContent = '✗ id non valido (solo a-z, 0-9, _)'; msg.className = 'hint bad'; return; }
       const name = id + '.yaml';
       if (byName[name] == null) {
         byName[name] = TEMPLATE(id);
@@ -84,8 +84,8 @@
       msg.textContent = 'salvo…'; msg.className = 'hint';
       const body = new URLSearchParams({ name: pick.value, content: editor.value });
       const j = await (await fetch('/admin/profiles/save', { method: 'POST', body })).json();
-      if (j.ok) { byName[pick.value] = editor.value; msg.textContent = '✓ salvato'; msg.className = 'ok'; }
-      else { msg.innerHTML = '✗ ' + (j.errors || ['errore']).join('<br>'); msg.className = 'bad'; }
+      if (j.ok) { byName[pick.value] = editor.value; msg.textContent = '✓ salvato'; msg.className = 'hint ok'; }
+      else { msg.innerHTML = '✗ ' + (j.errors || ['errore']).join('<br>'); msg.className = 'hint bad'; }
     });
 
     let timer = null;
