@@ -211,8 +211,14 @@ async function loadPins() {
   pinsLayer = L.geoJSON(gj, {
     pointToLayer: (f, ll) => {
       const p = f.properties;
-      const color = p.is_blank ? '#888' : '#2a7';
-      const m = L.circleMarker(ll, { radius: 5, color: '#134', weight: 1, fillColor: color, fillOpacity: 0.9 });
+      // Un fungo per i ritrovamenti, e i due vuoti distinti fra loro: un vuoto mirato
+      // dice molto di più di una passeggiata, e sulla mappa deve vedersi.
+      const glyph = p.is_blank ? (p.target ? '🎯' : '🚫') : '🍄';
+      const icon = L.divIcon({
+        className: '', iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -10],
+        html: `<span class="obs-pin${p.is_blank ? ' blank' : ''}">${glyph}</span>`
+      });
+      const m = L.marker(ll, { icon });
       let html = p.is_blank ? '<b>uscita a vuoto</b>' : `<b>${p.species || '?'}</b>`;
       if (p.is_blank && p.target) html += `<br>cercavo: ${p.target}`;
       if (p.phase) html += `<br>fase: ${p.phase}`;
