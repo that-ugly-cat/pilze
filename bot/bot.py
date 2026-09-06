@@ -95,12 +95,49 @@ _LOCATION_KB = ReplyKeyboardMarkup(
     resize_keyboard=True, one_time_keyboard=True,
 )
 
+# `request_location` e le tastiere di risposta esistono SOLO in chat privata: in un gruppo
+# Telegram rifiuta il messaggio con BadRequest e il flusso muore a metà, senza dire niente.
+# E togliere il bottone non basterebbe: con la privacy mode di BotFather attiva (default)
+# il bot in un gruppo non vede nemmeno il messaggio di posizione. Quindi si logga in
+# privato, e lo si dice subito invece di scoprirlo tre passi dopo.
+PRIVATE_ONLY = ("Il log funziona solo in chat privata: nei gruppi Telegram non permette "
+                "il bottone della posizione. Scrivimi in privato e ripeti da lì.")
+
+
+async def _require_private(update: Update) -> bool:
+    if update.effective_chat and update.effective_chat.type == "private":
+        return True
+    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    if msg:
+        await msg.reply_text(PRIVATE_ONLY)
+    return False
+
+
 # tastiera principale persistente (al posto degli slash)
 BTN_TROVATO, BTN_VUOTO, BTN_MIRATO = "🍄 Trovato", "🚫 Vuoto", "🎯 Mirato"
 MAIN_KB = ReplyKeyboardMarkup(
     [[KeyboardButton(BTN_TROVATO)], [KeyboardButton(BTN_VUOTO), KeyboardButton(BTN_MIRATO)]],
     resize_keyboard=True,
 )
+
+
+class FlowLost(Exception):
+    """L'osservazione in corso non c'è più, o appartiene a un altro flusso."""
+
+
+def _obs(ctx: ContextTypes.DEFAULT_TYPE, flow: str | None = None) -> dict:
+    """L'osservazione in corso, verificando che sia di QUESTO flusso.
+
+    I tre flussi sono ConversationHandler separati, ognuno col suo stato: abbandonare
+    "Trovato" a metà e premere "Vuoto" lasciava il primo appeso, e un tap su un bottone
+    vecchio scriveva la specie dentro l'uscita a vuoto. Il tag `flow` lo impedisce; il
+    resto lo fa `allow_reentry`, che rimette in piedi il flusso invece di lasciarlo
+    bloccato in uno stato che accetta solo bottoni.
+    """
+    obs = ctx.user_data.get("obs")
+    if obs is None or (flow is not None and obs.get("flow") != flow):
+        raise FlowLost
+    return obs
 
 
 def _now_iso() -> str:
@@ -154,7 +191,7 @@ async def _handle_date_choice(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
         await q.edit_message_text("Che giorno? (es. 3/9 oppure 3/9/2026)")
         return text_state
     d = _today() - timedelta(days=int(choice))
-    ctx.user_data["obs"]["obs_date"] = d.isoformat()
+    _obs(ctx)["obs_date"] = d.isoformat()
     await q.edit_message_text(f"Giorno: {d.strftime('%d/%m/%Y')}")
     return None
 
@@ -166,7 +203,7 @@ async def _handle_date_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> b
         await update.message.reply_text("Non ho capito la data (o è nel futuro). "
                                         "Scrivila come 3/9 oppure 3/9/2026.")
         return False
-    ctx.user_data["obs"]["obs_date"] = d.isoformat()
+    _obs(ctx)["obs_date"] = d.isoformat()
     await update.message.reply_text(f"Giorno: {d.strftime('%d/%m/%Y')}")
     return True
 
@@ -185,8 +222,10 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 # --------- /trovato -------------------------------------------------------- #
 async def trovato(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    if not await _require_private(update):
+        return ConversationHandler.END
     ctx.user_data["obs"] = {"ts_submit": _now_iso(), "user_id": update.effective_user.id,
-                            "is_blank": 0, "id_verified": 1}
+                            "is_blank": 0, "id_verified": 1, "flow": "f"}
     await update.message.reply_text("Specie?", reply_markup=_species_keyboard("f"))
     return F_SPECIES
 
@@ -195,7 +234,7 @@ async def f_species(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
     sid = q.data.split(":", 1)[1]
-    obs = ctx.user_data["obs"]
+    obs = _obs(ctx, "f")
     obs["species"] = sid
     name = REGISTRY[sid].common_name if sid in REGISTRY else sid
     await q.edit_message_text(f"Specie: {name}")
@@ -208,8 +247,8 @@ async def f_species(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def f_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     loc = update.message.location
-    ctx.user_data["obs"]["lat"] = loc.latitude
-    ctx.user_data["obs"]["lon"] = loc.longitude
+    _obs(ctx, "f")["lat"] = loc.latitude
+    _obs(ctx, "f")["lon"] = loc.longitude
     await update.message.reply_text("📍 Posizione ok.", reply_markup=ReplyKeyboardRemove())
     await update.message.reply_text("Che giorno eri lì?", reply_markup=_date_keyboard("fd"))
     return F_DATE
@@ -235,7 +274,7 @@ async def f_phase(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
     phase = q.data.split(":", 1)[1]
-    ctx.user_data["obs"]["phase"] = phase
+    _obs(ctx, "f")["phase"] = phase
     await q.edit_message_text(f"Fase: {phase}")
     if phase == "vecchio":            # perché è vecchio → informa lag e moisture floor (§6.1)
         await q.message.reply_text("Perché vecchio?", reply_markup=_choice_keyboard("or", OLD_REASONS))
@@ -247,8 +286,8 @@ async def f_phase(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def f_oldreason(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
-    ctx.user_data["obs"]["old_reason"] = q.data.split(":", 1)[1]
-    await q.edit_message_text(f"Vecchio: {ctx.user_data['obs']['old_reason']}")
+    _obs(ctx, "f")["old_reason"] = q.data.split(":", 1)[1]
+    await q.edit_message_text(f"Vecchio: {_obs(ctx, "f")['old_reason']}")
     await q.message.reply_text("Abbondanza:", reply_markup=_choice_keyboard("ab", ABUNDANCE))
     return F_ABUNDANCE
 
@@ -256,8 +295,8 @@ async def f_oldreason(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def f_abundance(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
-    ctx.user_data["obs"]["abundance"] = q.data.split(":", 1)[1]
-    await q.edit_message_text(f"Abbondanza: {ctx.user_data['obs']['abundance']}")
+    _obs(ctx, "f")["abundance"] = q.data.split(":", 1)[1]
+    await q.edit_message_text(f"Abbondanza: {_obs(ctx, "f")['abundance']}")
     await q.message.reply_text(
         "Peso in grammi? Scrivilo se ti va, oppure salta — l'abbondanza basta.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⏭ salta", callback_data="wt:skip")]]))
@@ -272,7 +311,7 @@ async def f_weight(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         return F_PHOTO
     if update.message.text and update.message.text not in ("/skip", "/fine"):
         try:
-            ctx.user_data["obs"]["weight_g"] = float(update.message.text.replace(",", "."))
+            _obs(ctx, "f")["weight_g"] = float(update.message.text.replace(",", "."))
         except ValueError:
             await update.message.reply_text("Numero non valido — riprova o tocca «salta»")
             return F_WEIGHT
@@ -282,21 +321,23 @@ async def f_weight(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def f_photo(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.photo:
-        ctx.user_data["obs"]["photo_file_id"] = update.message.photo[-1].file_id
+        _obs(ctx, "f")["photo_file_id"] = update.message.photo[-1].file_id
     return await _save_and_end(update, ctx)
 
 
 # --------- /vuoto ---------------------------------------------------------- #
 async def vuoto(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    if not await _require_private(update):
+        return ConversationHandler.END
     ctx.user_data["obs"] = {"ts_submit": _now_iso(), "user_id": update.effective_user.id,
-                            "is_blank": 1, "id_verified": 1}
+                            "is_blank": 1, "id_verified": 1, "flow": "b"}
     await update.message.reply_text("Uscita a vuoto. Posizione?", reply_markup=_LOCATION_KB)
     return B_LOCATION
 
 
 async def b_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     loc = update.message.location
-    ctx.user_data["obs"].update({"lat": loc.latitude, "lon": loc.longitude})
+    _obs(ctx, "b").update({"lat": loc.latitude, "lon": loc.longitude})
     await update.message.reply_text("📍 Posizione ok.", reply_markup=ReplyKeyboardRemove())
     await update.message.reply_text("Che giorno eri lì?", reply_markup=_date_keyboard("bd"))
     return B_DATE
@@ -320,15 +361,17 @@ async def b_datetext(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def b_effort(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
-    ctx.user_data["obs"]["effort_min"] = int(q.data.split(":", 1)[1])
-    await q.edit_message_text(f"Ricerca: {ctx.user_data['obs']['effort_min']} min circa")
+    _obs(ctx, "b")["effort_min"] = int(q.data.split(":", 1)[1])
+    await q.edit_message_text(f"Ricerca: {_obs(ctx, "b")['effort_min']} min circa")
     return await _save_and_end(update, ctx)
 
 
 # --------- /mirato --------------------------------------------------------- #
 async def mirato(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    if not await _require_private(update):
+        return ConversationHandler.END
     ctx.user_data["obs"] = {"ts_submit": _now_iso(), "user_id": update.effective_user.id,
-                            "is_blank": 1, "id_verified": 1}
+                            "is_blank": 1, "id_verified": 1, "flow": "t"}
     await update.message.reply_text("Che specie cercavi?", reply_markup=_species_keyboard("t"))
     return T_SPECIES
 
@@ -337,7 +380,7 @@ async def t_species(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
     sid = q.data.split(":", 1)[1]
-    ctx.user_data["obs"]["target_species"] = sid
+    _obs(ctx, "t")["target_species"] = sid
     name = REGISTRY[sid].common_name if sid in REGISTRY else sid
     await q.edit_message_text(f"Cercavi: {name}")
     await q.message.reply_text("Posizione?", reply_markup=_LOCATION_KB)
@@ -346,7 +389,7 @@ async def t_species(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def t_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     loc = update.message.location
-    ctx.user_data["obs"].update({"lat": loc.latitude, "lon": loc.longitude})
+    _obs(ctx, "t").update({"lat": loc.latitude, "lon": loc.longitude})
     await update.message.reply_text("📍 Posizione ok.", reply_markup=ReplyKeyboardRemove())
     await update.message.reply_text("Che giorno eri lì?", reply_markup=_date_keyboard("td"))
     return T_DATE
@@ -370,8 +413,8 @@ async def t_datetext(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 async def t_effort(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     q = update.callback_query
     await q.answer()
-    ctx.user_data["obs"]["effort_min"] = int(q.data.split(":", 1)[1])
-    await q.edit_message_text(f"Ricerca: {ctx.user_data['obs']['effort_min']} min circa")
+    _obs(ctx, "t")["effort_min"] = int(q.data.split(":", 1)[1])
+    await q.edit_message_text(f"Ricerca: {_obs(ctx, "t")['effort_min']} min circa")
     return await _save_and_end(update, ctx)
 
 
@@ -402,7 +445,7 @@ async def ancora(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         await q.edit_message_text("Non ho più la posizione precedente — usa 🍄 Trovato.")
         return ConversationHandler.END
     ctx.user_data["obs"] = {"ts_submit": _now_iso(), "user_id": update.effective_user.id,
-                            "is_blank": 0, "id_verified": 1, **last}
+                            "is_blank": 0, "id_verified": 1, "flow": "f", **last}
     await q.edit_message_text("Stessa posizione e stesso giorno.")
     await q.message.reply_text("Specie?", reply_markup=_species_keyboard("f"))
     return F_SPECIES
@@ -423,6 +466,32 @@ async def unknown(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         f"{hint}non ho una raccolta in corso. Tocca 🍄 Trovato / 🚫 Vuoto / 🎯 Mirato (o /start).",
         reply_markup=MAIN_KB)
+
+
+async def stale_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Bottone di una conversazione già chiusa: rispondere toglie la rotella di attesa."""
+    await update.callback_query.answer("Questo bottone non è più attivo — ricomincia dal menu.")
+
+
+async def on_error(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Un handler che esplodeva lasciava l'utente in silenzio, con la conversazione ferma
+    allo stato di prima: il bot sembrava rotto senza dire perché. Ora si dichiara."""
+    lost = isinstance(ctx.error, FlowLost)
+    if lost:
+        log.info("flusso perso: bottone di un'osservazione non più in corso")
+    else:
+        log.exception("errore non gestito", exc_info=ctx.error)
+    msg = getattr(update, "message", None) or getattr(
+        getattr(update, "callback_query", None), "message", None)
+    if msg is None:
+        return
+    text = ("Questa raccolta non è più in corso — ricomincia dal menu." if lost else
+            "Qualcosa è andato storto da parte mia. Fai /annulla e ricomincia — "
+            "l'errore è finito nei log.")
+    try:
+        await msg.reply_text(text, reply_markup=MAIN_KB)
+    except Exception:                       # se non si può nemmeno rispondere, basta il log
+        pass
 
 
 def build_application(token: str) -> Application:
@@ -451,6 +520,8 @@ def build_application(token: str) -> Application:
             F_PHOTO: [MessageHandler((filters.PHOTO | filters.COMMAND) & ~_CANCEL, f_photo)],
         },
         fallbacks=fallbacks,
+        # ripremere un bottone del menu ricomincia, invece di non fare nulla
+        allow_reentry=True,
     ))
     app.add_handler(ConversationHandler(
         entry_points=[CommandHandler("vuoto", vuoto),
@@ -462,6 +533,8 @@ def build_application(token: str) -> Application:
             B_EFFORT: [CallbackQueryHandler(b_effort, pattern=r"^ef:")],
         },
         fallbacks=fallbacks,
+        # ripremere un bottone del menu ricomincia, invece di non fare nulla
+        allow_reentry=True,
     ))
     app.add_handler(ConversationHandler(
         entry_points=[CommandHandler("mirato", mirato),
@@ -474,8 +547,15 @@ def build_application(token: str) -> Application:
             T_EFFORT: [CallbackQueryHandler(t_effort, pattern=r"^ef:")],
         },
         fallbacks=fallbacks,
+        # ripremere un bottone del menu ricomincia, invece di non fare nulla
+        allow_reentry=True,
     ))
-    app.add_handler(MessageHandler(~filters.COMMAND, unknown))   # ultimo: mai silenzio
+    # Ultimi del gruppo 0: dentro un gruppo vince il primo handler che accetta, quindi
+    # questi raccolgono solo ciò che nessuna conversazione ha gestito. Mai silenzio.
+    app.add_handler(CallbackQueryHandler(stale_callback))
+    app.add_handler(CommandHandler("annulla", annulla))          # anche fuori da un flusso
+    app.add_handler(MessageHandler(~filters.COMMAND, unknown))
+    app.add_error_handler(on_error)
     return app
 
 
