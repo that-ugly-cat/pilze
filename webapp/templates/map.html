@@ -43,7 +43,7 @@
     <div id="status"></div>
     <div class="spacer"></div>
     <div class="foot">
-      {{ user.username }}{% if user.is_admin %} · <a href="/admin">admin</a>{% endif %} · <a href="/logout">esci</a>
+      <a href="/me">{{ user.username }}</a>{% if user.is_admin %} · <a href="/admin">admin</a>{% endif %} · <a href="/logout">esci</a>
     </div>
   </div>
   <div id="map"></div>

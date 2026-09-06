@@ -30,6 +30,24 @@ def _connect(db_path: Path | str = DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+# Colonne aggiunte dopo la prima release: CREATE TABLE IF NOT EXISTS non le porta su un DB
+# già creato. La casa serve per le distanze ("porcini entro 50 km"), quindi sta sull'utente
+# e non in una impostazione globale: ognuno parte da casa sua.
+_MIGRATIONS = (("home_lat", "REAL"), ("home_lon", "REAL"))
+
+
+def migrate(db_path: Path | str = DB_PATH) -> list[str]:
+    conn = _connect(db_path)
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+    added = []
+    for col, sqltype in _MIGRATIONS:
+        if col not in have:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {col} {sqltype}")
+            added.append(col)
+    conn.commit(); conn.close()
+    return added
+
+
 def _hash(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 200_000).hex()
 
@@ -89,6 +107,38 @@ def close_session(token: str | None, db_path: Path | str = DB_PATH) -> None:
         conn = _connect(db_path)
         conn.execute("DELETE FROM sessions WHERE token=?", (token,))
         conn.commit(); conn.close()
+
+
+def get_user(username: str, db_path: Path | str = DB_PATH) -> dict | None:
+    conn = _connect(db_path)
+    row = conn.execute("SELECT username, is_admin, created, home_lat, home_lon "
+                       "FROM users WHERE username=?", (username,)).fetchone()
+    conn.close(); return dict(row) if row else None
+
+
+def set_password(username: str, password: str, db_path: Path | str = DB_PATH) -> None:
+    """Nuovo salt insieme alla nuova password: un cambio password non riusa nulla di prima."""
+    salt = secrets.token_hex(16)
+    conn = _connect(db_path)
+    conn.execute("UPDATE users SET pw_hash=?, salt=? WHERE username=?",
+                 (_hash(password, salt), salt, username))
+    conn.commit(); conn.close()
+
+
+def close_other_sessions(username: str, keep_token: str | None,
+                         db_path: Path | str = DB_PATH) -> None:
+    """Dopo un cambio password le altre sessioni cadono: è metà del senso del cambio."""
+    conn = _connect(db_path)
+    conn.execute("DELETE FROM sessions WHERE username=? AND token IS NOT ?",
+                 (username, keep_token))
+    conn.commit(); conn.close()
+
+
+def set_home(username: str, lat: float | None, lon: float | None,
+             db_path: Path | str = DB_PATH) -> None:
+    conn = _connect(db_path)
+    conn.execute("UPDATE users SET home_lat=?, home_lon=? WHERE username=?", (lat, lon, username))
+    conn.commit(); conn.close()
 
 
 def ensure_bootstrap_admin(db_path: Path | str = DB_PATH) -> None:

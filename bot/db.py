@@ -70,6 +70,31 @@ def insert_observation(obs: dict, db_path: Path | str = DB_PATH) -> int:
     return obs_id
 
 
+def get_observation(obs_id: int, db_path: Path | str = DB_PATH) -> dict | None:
+    conn = connect(db_path)
+    row = conn.execute("SELECT * FROM observations WHERE id=?", (obs_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_observation(obs_id: int, obs: dict, db_path: Path | str = DB_PATH) -> None:
+    """Riscrive i campi passati. Le colonne non citate restano come sono; i cell_id vanno
+    azzerati dal chiamante se la posizione cambia, così il poller li riassegna."""
+    cols = [k for k in _FIELDS if k in obs]
+    if not cols:
+        return
+    conn = connect(db_path)
+    conn.execute(f"UPDATE observations SET {', '.join(c + '=?' for c in cols)} WHERE id=?",
+                 [obs[c] for c in cols] + [obs_id])
+    conn.commit(); conn.close()
+
+
+def delete_observation(obs_id: int, db_path: Path | str = DB_PATH) -> None:
+    conn = connect(db_path)
+    conn.execute("DELETE FROM observations WHERE id=?", (obs_id,))
+    conn.commit(); conn.close()
+
+
 def all_observations(db_path: Path | str = DB_PATH) -> list[dict]:
     """Tutte le osservazioni con coordinate — per la mappa a pin (v1)."""
     conn = connect(db_path)

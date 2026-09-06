@@ -1,13 +1,14 @@
 <!doctype html>
 <html lang="it"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pilze — logga un'uscita</title>
+<title>Pilze — {% if edit_id %}modifica{% else %}logga un'uscita{% endif %}</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head><body class="admin">
   <div class="topbar">
     <span class="tb-brand">🍄 Pilze</span>
-    <a href="/log" class="active">Logga</a>
+    <a href="/log"{% if not edit_id %} class="active"{% endif %}>Logga</a>
+    <a href="/me"{% if edit_id %} class="active"{% endif %}>Scheda</a>
     {% if user.is_admin %}<a href="/admin">Utenti</a>{% endif %}
     <span class="tb-sp"></span>
     <a href="/">← mappa</a>
@@ -23,21 +24,24 @@
     {% endif %}
     {% if error %}<p class="hint bad banner">{{ error }}</p>{% endif %}
 
-    <form method="post" action="/log" enctype="multipart/form-data" id="logform">
-      <h1>Logga un'uscita</h1>
+    {% set kind = 'found' if not prefill.is_blank else ('target' if prefill.target_species else 'blank') %}
+    <form method="post" action="{% if edit_id %}/me/obs/{{ edit_id }}{% else %}/log{% endif %}"
+          enctype="multipart/form-data" id="logform">
+      <h1>{% if edit_id %}Modifica osservazione #{{ edit_id }}{% else %}Logga un'uscita{% endif %}</h1>
 
       <fieldset class="seg">
         <legend>Com'è andata?</legend>
-        <label><input type="radio" name="kind" value="found" checked> 🍄 Trovato</label>
-        <label><input type="radio" name="kind" value="blank"> 🚫 Vuoto</label>
-        <label><input type="radio" name="kind" value="target"> 🎯 Mirato a vuoto</label>
+        <label><input type="radio" name="kind" value="found" {{ 'checked' if kind == 'found' }}> 🍄 Trovato</label>
+        <label><input type="radio" name="kind" value="blank" {{ 'checked' if kind == 'blank' }}> 🚫 Vuoto</label>
+        <label><input type="radio" name="kind" value="target" {{ 'checked' if kind == 'target' }}> 🎯 Mirato a vuoto</label>
         <p class="hint">Un vuoto <b>mirato</b> (cercavi una specie precisa, dove sai che c'è)
           è uno zero forte sul <i>quando</i>. Un vuoto generico dice molto meno.</p>
       </fieldset>
 
       <label class="fld" id="fld-species">Specie
         <select name="species">
-          {% for s in species %}<option value="{{ s.id }}">{{ s.common|capitalize }} — {{ s.scientific }}</option>{% endfor %}
+          {% set sel = prefill.species or prefill.target_species %}
+          {% for s in species %}<option value="{{ s.id }}" {{ 'selected' if s.id == sel }}>{{ s.common|capitalize }} — {{ s.scientific }}</option>{% endfor %}
         </select>
       </label>
 
@@ -59,43 +63,45 @@
       <div id="found-only">
         <label class="fld">Maturità
           <select name="phase">
-            <option value="buono">👌 giusti</option>
-            <option value="primordi">🌱 primordi (troppo presto)</option>
-            <option value="vecchio">🍂 vecchi (troppo tardi)</option>
+            <option value="buono" {{ 'selected' if prefill.phase == 'buono' }}>👌 giusti</option>
+            <option value="primordi" {{ 'selected' if prefill.phase == 'primordi' }}>🌱 primordi (troppo presto)</option>
+            <option value="vecchio" {{ 'selected' if prefill.phase == 'vecchio' }}>🍂 vecchi (troppo tardi)</option>
           </select>
         </label>
-        <label class="fld off" id="fld-oldreason">Perché vecchi?
+        <label class="fld{{ '' if prefill.phase == 'vecchio' else ' off' }}" id="fld-oldreason">Perché vecchi?
           <select name="old_reason">
-            <option value="senescente">🍂 senescente (buttata semplicemente tardi)</option>
-            <option value="abortito">🌵 abortito (condizioni girate, secco)</option>
+            <option value="senescente" {{ 'selected' if prefill.old_reason == 'senescente' }}>🍂 senescente (buttata semplicemente tardi)</option>
+            <option value="abortito" {{ 'selected' if prefill.old_reason == 'abortito' }}>🌵 abortito (condizioni girate, secco)</option>
           </select>
         </label>
         <label class="fld">Quanti
           <select name="abundance">
-            <option value="pochi">pochi (1–5)</option>
-            <option value="medi">medi (6–15)</option>
-            <option value="tanti">tanti (16+)</option>
+            <option value="pochi" {{ 'selected' if prefill.abundance == 'pochi' }}>pochi (1–5)</option>
+            <option value="medi" {{ 'selected' if prefill.abundance == 'medi' }}>medi (6–15)</option>
+            <option value="tanti" {{ 'selected' if prefill.abundance == 'tanti' }}>tanti (16+)</option>
           </select>
         </label>
         <label class="fld">Peso raccolto in grammi <span class="hint">(facoltativo)</span>
-          <input type="number" name="weight_g" min="0" step="10" placeholder="—">
+          <input type="number" name="weight_g" min="0" step="10" placeholder="—" value="{{ prefill.weight_g|int if prefill.weight_g else '' }}">
         </label>
         <label class="fld">Foto <span class="hint">(facoltativa)</span>
-          <input type="file" name="photo" accept="image/*" capture="environment">
+          <input type="file" name="photo" accept="image/*">
         </label>
       </div>
 
       <label class="fld off" id="fld-effort">Quanto hai cercato
         <select name="effort_min">
-          <option value="15">meno di 30 min</option>
-          <option value="60" selected>30–90 min</option>
-          <option value="150">1,5–3 h</option>
-          <option value="240">più di 3 h</option>
+          <option value="15" {{ 'selected' if prefill.effort_min == 15 }}>meno di 30 min</option>
+          <option value="60" {{ 'selected' if not prefill.effort_min or prefill.effort_min == 60 }}>30–90 min</option>
+          <option value="150" {{ 'selected' if prefill.effort_min == 150 }}>1,5–3 h</option>
+          <option value="240" {{ 'selected' if prefill.effort_min == 240 }}>più di 3 h</option>
         </select>
         <span class="hint">Un vuoto vale in proporzione a quanto hai girato.</span>
       </label>
 
-      <button type="submit" class="primary">Salva</button>
+      <button type="submit" class="primary">{% if edit_id %}Salva le modifiche{% else %}Salva{% endif %}</button>
+      {% if edit_id %}<p class="hint">Una foto nuova sostituisce quella esistente.
+        <a href="/me">torna alla scheda senza salvare</a></p>{% endif %}
     </form>
   </div>
 

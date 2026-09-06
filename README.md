@@ -33,7 +33,8 @@ gis/          layer + pipeline:
 bot/          persistenza osservazioni (SQLite, §6.1). Nome storico: la cattura era un
                 bot Telegram, ora è il form della web app
 webapp/       web app FastAPI + Leaflet: auth · admin (utenti · editor profili + rigenerazione ·
-                doc) · mappa (idoneità statica/dinamica/ritrovamenti · trova-spot · mobile)
+                doc) · mappa (idoneità statica/dinamica/ritrovamenti · trova-spot · mobile) ·
+                /log (cattura) · /me (scheda: casa, password, storico modificabile)
 tests/        27 test (motore · provider · gate · AOI · persistenza osservazioni)
 Dockerfile · docker-compose.yml · DEPLOY.md
 ```
@@ -194,6 +195,13 @@ Quattro scelte che vale la pena non disfare:
   dieci minuti e tre ore non sono lo stesso zero, e pesarli uguale diluisce i vuoti veri.
 - **«Altra specie, stesso punto»** dopo il salvataggio, che riusa pin e giorno: in
   un'uscita trovi porcini e finferli, e le etichette raddoppiano a costo quasi nullo.
+- **Lo storico si corregge** (`/me`): un'osservazione sbagliata pesa più di una mancante,
+  perché il learner la prende per buona. Cambiando il tipo di uscita i campi non più
+  pertinenti vengono azzerati, altrimenti un vuoto si porterebbe dietro la fase di quando
+  era un ritrovamento; e se si sposta il pin, i `cell_id` tornano NULL e li riassegna il
+  poller, invece di restare legati alla cella sbagliata.
+- **La casa** è sull'utente (`/me`), non una impostazione globale: serve alle distanze
+  («cosa è pronto entro 50 km») e ognuno parte da casa sua.
 
 E un buco chiuso lato pipeline: il poller archiviava il meteo **solo** per le celle che il
 modello statico giudica già buone (idoneità > 0.4). Un ritrovamento in una cella mediocre

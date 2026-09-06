@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze — scheda</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{{ asset('style.css') }}">
+</head><body class="admin">
+  <div class="topbar">
+    <span class="tb-brand">🍄 Pilze</span>
+    <a href="/log">Logga</a>
+    <a href="/me" class="active">Scheda</a>
+    {% if user.is_admin %}<a href="/admin">Utenti</a>{% endif %}
+    <span class="tb-sp"></span>
+    <a href="/">← mappa</a>
+    <span class="tb-user">{{ user.username }}</span>
+    <a href="/logout">esci</a>
+  </div>
+
+  {% if msg %}<p class="hint ok banner">✅ {{ msg }}</p>{% endif %}
+  {% if err %}<p class="hint bad banner">{{ err }}</p>{% endif %}
+
+  <div class="card wide">
+    <h1>Casa</h1>
+    <p class="hint">Il punto di partenza per le distanze — «cosa è pronto entro 50 km».
+      Tocca la mappa o trascina il pin.</p>
+    <div id="home-map" class="minimap"></div>
+    <form method="post" action="/me/home" class="row" style="margin-top:8px">
+      <button type="button" id="home-geo">📍 Dove sono adesso</button>
+      <span id="home-coords" class="hint">
+        {%- if profile.home_lat %}{{ '%.5f'|format(profile.home_lat) }}, {{ '%.5f'|format(profile.home_lon) }}
+        {%- else %}nessuna casa impostata{% endif %}</span>
+      <input type="hidden" name="home_lat" id="home_lat" value="{{ profile.home_lat or '' }}">
+      <input type="hidden" name="home_lon" id="home_lon" value="{{ profile.home_lon or '' }}">
+      <span class="tb-sp"></span>
+      <button type="submit">Salva casa</button>
+    </form>
+    {% if profile.home_lat %}
+    <form method="post" action="/me/home"
+          onsubmit="return confirm('Rimuovere il punto di casa?')">
+      <input type="hidden" name="home_lat" value=""><input type="hidden" name="home_lon" value="">
+      <button type="submit" class="danger">Rimuovi casa</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card wide">
+    <h1>Password</h1>
+    <form method="post" action="/me/password">
+      <label class="fld">Password attuale <input type="password" name="current" required></label>
+      <label class="fld">Nuova password <input type="password" name="new1" minlength="8" required></label>
+      <label class="fld">Ripeti la nuova <input type="password" name="new2" minlength="8" required></label>
+      <p class="hint">Cambiandola, le altre sessioni aperte vengono chiuse.</p>
+      <button type="submit">Cambia password</button>
+    </form>
+  </div>
+
+  <div class="card wide">
+    <h1>Storico — {{ observations|length }} osservazioni</h1>
+    <p class="hint">I ritrovamenti sono condivisi fra tutti gli account, e chiunque può
+      correggerli. Un'osservazione sbagliata pesa più di una mancante: il learner la prende
+      per buona.</p>
+    {% if not observations %}
+      <p class="hint">Ancora nessuna. <a href="/log">Logga la prima uscita</a>.</p>
+    {% else %}
+    <table>
+      <tr><th>Giorno</th><th>Cosa</th><th>Dettagli</th><th>Chi</th><th></th></tr>
+      {% for o in observations %}
+      <tr>
+        <td>{{ o.obs_date or (o.ts_submit or '')[:10] }}</td>
+        <td>{{ o.label }}</td>
+        <td class="hint">
+          {%- if o.phase %}{{ o.phase }}{% if o.old_reason %} ({{ o.old_reason }}){% endif %}{% endif -%}
+          {%- if o.abundance %} · {{ o.abundance }}{% endif -%}
+          {%- if o.weight_g %} · {{ o.weight_g|int }} g{% endif -%}
+          {%- if o.effort_min %} · ~{{ o.effort_min }} min{% endif -%}
+          {%- if o.lat %} · {{ '%.4f'|format(o.lat) }}, {{ '%.4f'|format(o.lon) }}{% endif -%}
+        </td>
+        <td class="hint">{{ o.logged_by or '—' }}</td>
+        <td class="row">
+          <a href="/me/obs/{{ o.id }}">modifica</a>
+          <form method="post" action="/me/obs/{{ o.id }}/delete"
+                onsubmit="return confirm('Eliminare l\'osservazione #{{ o.id }}? Non si torna indietro.')">
+            <button type="submit" class="danger">elimina</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{{ asset('home.js') }}"></script>
+</body></html>

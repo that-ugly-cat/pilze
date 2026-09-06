@@ -1,5 +1,7 @@
 <div class="topbar">
   <span class="tb-brand">🍄 Pilze</span>
+  <a href="/log">Logga</a>
+  <a href="/me">Scheda</a>
   <a href="/admin"{% if request.url.path == '/admin' %} class="active"{% endif %}>Utenti</a>
   <a href="/admin/profiles"{% if request.url.path == '/admin/profiles' %} class="active"{% endif %}>Profili</a>
   <a href="/admin/docs"{% if request.url.path == '/admin/docs' %} class="active"{% endif %}>Doc</a>

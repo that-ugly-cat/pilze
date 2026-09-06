@@ -65,6 +65,7 @@ templates.env.globals["asset"] = asset
 
 @app.on_event("startup")
 def _startup():
+    auth.migrate()           # colonne aggiunte dopo la prima release (casa)
     auth.ensure_bootstrap_admin()
     obsdb.init_db()          # crea la tabella observations se il bot non ha ancora girato
 
@@ -123,10 +124,55 @@ def _species_list():
             for p in sorted(REG.values(), key=lambda p: p.common_name)]
 
 
-def _log_page(request: Request, u: dict, prefill: dict, saved=None, error=None):
+def _log_page(request: Request, u: dict, prefill: dict, saved=None, error=None, edit_id=None):
     return templates.TemplateResponse(request, "log.html", {
         "user": u, "species": _species_list(), "prefill": prefill, "saved": saved,
-        "error": error, "today": date.today().isoformat()})
+        "error": error, "edit_id": edit_id, "today": date.today().isoformat()})
+
+
+def _obs_from_form(kind, obs_date, lat, lon, species, phase, old_reason,
+                   abundance, weight_g, effort_min) -> tuple[dict | None, str | None]:
+    """Valida i campi del form → (osservazione, errore). Condivisa da /log e dalla modifica.
+
+    I campi non pertinenti al tipo di uscita vengono messi a None esplicitamente, non
+    lasciati stare: cambiando un ritrovamento in un vuoto, la fase di prima resterebbe
+    attaccata e il learner leggerebbe un vuoto "in fase buona".
+    """
+    if kind not in KINDS:
+        return None, "Tipo di uscita non valido."
+    try:
+        d = date.fromisoformat(obs_date)
+    except ValueError:
+        return None, "Data non valida."
+    if d > date.today():
+        return None, "La data è nel futuro."
+    if kind != "blank" and species not in REG:
+        return None, "Specie non riconosciuta."
+
+    obs = {"obs_date": d.isoformat(), "lat": lat, "lon": lon,
+           "is_blank": 0 if kind == "found" else 1,
+           "species": None, "target_species": None, "phase": None, "old_reason": None,
+           "abundance": None, "weight_g": None, "effort_min": None}
+    if kind == "found":
+        obs["species"] = species
+        obs["phase"] = phase if phase in PHASES else None
+        if obs["phase"] == "vecchio" and old_reason in OLD_REASONS:
+            obs["old_reason"] = old_reason
+        obs["abundance"] = abundance if abundance in ABUNDANCE else None
+        if weight_g.strip():
+            try:
+                obs["weight_g"] = float(weight_g.replace(",", "."))
+            except ValueError:
+                return None, "Peso non valido."
+    else:
+        if kind == "target":
+            obs["target_species"] = species
+        try:
+            e = int(effort_min)
+        except ValueError:
+            e = 0
+        obs["effort_min"] = e if e in EFFORT_MIN else None
+    return obs, None
 
 
 @app.get("/log", response_class=HTMLResponse)
@@ -153,48 +199,132 @@ async def log_save(request: Request,
     u = _user(request)
     if not u:
         return RedirectResponse("/login", status_code=303)
-    prefill = {"lat": lat, "lon": lon, "obs_date": obs_date}
-    if kind not in KINDS:
-        return _log_page(request, u, prefill, error="Tipo di uscita non valido.")
-    try:
-        d = date.fromisoformat(obs_date)
-    except ValueError:
-        return _log_page(request, u, prefill, error="Data non valida.")
-    if d > date.today():
-        return _log_page(request, u, prefill, error="La data è nel futuro.")
-    if kind != "blank" and species not in REG:
-        return _log_page(request, u, prefill, error="Specie non riconosciuta.")
-
-    obs = {"ts_submit": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "obs_date": d.isoformat(), "logged_by": u["username"], "lat": lat, "lon": lon,
-           "is_blank": 0 if kind == "found" else 1, "id_verified": 1}
-    if kind == "found":
-        obs["species"] = species
-        obs["phase"] = phase if phase in PHASES else None
-        if obs["phase"] == "vecchio" and old_reason in OLD_REASONS:
-            obs["old_reason"] = old_reason
-        obs["abundance"] = abundance if abundance in ABUNDANCE else None
-        if weight_g.strip():
-            try:
-                obs["weight_g"] = float(weight_g.replace(",", "."))
-            except ValueError:
-                return _log_page(request, u, prefill, error="Peso non valido.")
-    else:
-        if kind == "target":
-            obs["target_species"] = species
-        try:
-            e = int(effort_min)
-        except ValueError:
-            e = 0
-        obs["effort_min"] = e if e in EFFORT_MIN else None
-
+    obs, err = _obs_from_form(kind, obs_date, lat, lon, species, phase, old_reason,
+                              abundance, weight_g, effort_min)
+    if err:
+        return _log_page(request, u, {"lat": lat, "lon": lon, "obs_date": obs_date}, error=err)
+    obs.update({"ts_submit": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "logged_by": u["username"], "id_verified": 1})
     obs_id = obsdb.insert_observation(obs)
-    if photo is not None and photo.filename:
-        # il servizio foto legge da data/photos/<id>.jpg: scrivendo lì, /photo/<id> funziona
-        # senza cambiare nulla (era la cache dei file scaricati da Telegram).
-        PHOTO_CACHE.mkdir(parents=True, exist_ok=True)
-        (PHOTO_CACHE / f"{obs_id}.jpg").write_bytes(await photo.read())
+    await _save_photo(obs_id, photo)
     return _log_page(request, u, {}, saved=obs_id)
+
+
+async def _save_photo(obs_id: int, photo) -> None:
+    """Le foto vanno in data/photos/<id>.jpg, che è dove /photo/<id> già cercava la cache
+    dei file scaricati da Telegram: nessun secondo percorso da mantenere."""
+    if photo is None or not photo.filename:
+        return
+    PHOTO_CACHE.mkdir(parents=True, exist_ok=True)
+    (PHOTO_CACHE / f"{obs_id}.jpg").write_bytes(await photo.read())
+
+
+# --- scheda utente --------------------------------------------------------- #
+# Storico modificabile perché un'osservazione sbagliata è peggio di una mancante: il
+# learner la prende per buona. I ritrovamenti sono condivisi (decisione A, gruppo di
+# fidati), quindi la lista li mostra tutti con l'autore, e chiunque può correggerli.
+@app.get("/me", response_class=HTMLResponse)
+def me_page(request: Request, msg: str | None = None, err: str | None = None):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    prof = auth.get_user(u["username"]) or {}
+    obs = obsdb.all_observations()
+    for o in obs:
+        o["label"] = _obs_label(o)
+    return templates.TemplateResponse(request, "me.html", {
+        "user": u, "profile": prof, "observations": obs, "msg": msg, "err": err})
+
+
+def _obs_label(o: dict) -> str:
+    sid = o.get("species") or o.get("target_species")
+    name = REG[sid].common_name if sid in REG else (sid or "—")
+    if not o.get("is_blank"):
+        return f"🍄 {name}"
+    return f"🎯 vuoto mirato ({name})" if o.get("target_species") else "🚫 vuoto"
+
+
+@app.post("/me/password")
+def me_password(request: Request, current: str = Form(...), new1: str = Form(...),
+                new2: str = Form(...)):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    if not auth.verify(u["username"], current):
+        return RedirectResponse("/me?err=Password+attuale+errata", status_code=303)
+    if len(new1) < 8:
+        return RedirectResponse("/me?err=La+nuova+password+e+troppo+corta+(min+8)", status_code=303)
+    if new1 != new2:
+        return RedirectResponse("/me?err=Le+due+password+non+coincidono", status_code=303)
+    auth.set_password(u["username"], new1)
+    auth.close_other_sessions(u["username"], request.cookies.get("pilze_session"))
+    return RedirectResponse("/me?msg=Password+aggiornata+(le+altre+sessioni+sono+state+chiuse)",
+                            status_code=303)
+
+
+@app.post("/me/home")
+def me_home(request: Request, home_lat: str = Form(""), home_lon: str = Form("")):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    if not home_lat.strip() or not home_lon.strip():
+        auth.set_home(u["username"], None, None)
+        return RedirectResponse("/me?msg=Casa+rimossa", status_code=303)
+    try:
+        lat, lon = float(home_lat), float(home_lon)
+    except ValueError:
+        return RedirectResponse("/me?err=Coordinate+di+casa+non+valide", status_code=303)
+    auth.set_home(u["username"], lat, lon)
+    return RedirectResponse("/me?msg=Casa+salvata", status_code=303)
+
+
+@app.get("/me/obs/{obs_id}", response_class=HTMLResponse)
+def obs_edit_form(request: Request, obs_id: int):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    o = obsdb.get_observation(obs_id)
+    if not o:
+        return RedirectResponse("/me?err=Osservazione+non+trovata", status_code=303)
+    return _log_page(request, u, o, edit_id=obs_id)
+
+
+@app.post("/me/obs/{obs_id}", response_class=HTMLResponse)
+async def obs_edit_save(request: Request, obs_id: int,
+                        kind: str = Form(...), obs_date: str = Form(...),
+                        lat: float = Form(...), lon: float = Form(...),
+                        species: str = Form(""), phase: str = Form(""),
+                        old_reason: str = Form(""), abundance: str = Form(""),
+                        weight_g: str = Form(""), effort_min: str = Form(""),
+                        photo: UploadFile | None = File(None)):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    old = obsdb.get_observation(obs_id)
+    if not old:
+        return RedirectResponse("/me?err=Osservazione+non+trovata", status_code=303)
+    obs, err = _obs_from_form(kind, obs_date, lat, lon, species, phase, old_reason,
+                              abundance, weight_g, effort_min)
+    if err:
+        return _log_page(request, u, {**old, "lat": lat, "lon": lon, "obs_date": obs_date},
+                         error=err, edit_id=obs_id)
+    if (lat, lon) != (old["lat"], old["lon"]):
+        # i cell_id li riassegna il poller: lasciarli vecchi legherebbe l'osservazione
+        # alla cella sbagliata, che è il modo peggiore di sbagliare
+        obs["static_cell_id"] = obs["meteo_cell_id"] = None
+    obsdb.update_observation(obs_id, obs)
+    await _save_photo(obs_id, photo)
+    return RedirectResponse(f"/me?msg=Osservazione+%23{obs_id}+aggiornata", status_code=303)
+
+
+@app.post("/me/obs/{obs_id}/delete")
+def obs_delete(request: Request, obs_id: int):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    obsdb.delete_observation(obs_id)
+    (PHOTO_CACHE / f"{obs_id}.jpg").unlink(missing_ok=True)
+    return RedirectResponse(f"/me?msg=Osservazione+%23{obs_id}+eliminata", status_code=303)
 
 
 @app.get("/admin", response_class=HTMLResponse)
