@@ -88,3 +88,36 @@ def test_soil_provider_ph():
     assert f is not None
     assert f["soil_ph"] in {"acidic", "neutral", "calcareous"}
     assert 3.0 <= f["soil_ph_value"] <= 9.0
+
+
+@pytest.mark.skipif(not (DATA / "aoi" / "aoi.gpkg").exists(),
+                    reason="AOI assente (python -m gis.fetch_boundaries)")
+def test_aoi_provider_dentro_e_fuori():
+    pytest.importorskip("geopandas")
+    from gis.providers import AOIProvider
+    aoi = AOIProvider()
+    assert aoi.units == ["Bolzano", "Trento", "Veneto"]
+    for lat, lon in [(46.30, 11.45), (46.75, 12.05), (45.87, 11.51)]:   # TN, BZ, VE
+        assert aoi.features(lat, lon) == {}, (lat, lon)
+    for lat, lon in [(46.25, 10.45), (46.40, 12.95), (47.05, 11.40)]:   # LO, FVG, AT
+        assert aoi.features(lat, lon) is None, (lat, lon)
+
+
+def test_composite_taglia_sul_provider_required():
+    """Un provider `is_required` che tace azzera la cella; gli altri restano neutri."""
+    from gis.providers import CompositeFeatureProvider
+    from gis.suitability import FeatureProvider
+
+    class Silent(FeatureProvider):
+        def features(self, lat, lon):
+            return None
+
+    class Required(Silent):
+        is_required = True
+
+    class Base(FeatureProvider):
+        def features(self, lat, lon):
+            return {"elevation_m": 900}
+
+    assert CompositeFeatureProvider([Base(), Silent()]).features(46.0, 11.0) == {"elevation_m": 900}
+    assert CompositeFeatureProvider([Base(), Required()]).features(46.0, 11.0) is None

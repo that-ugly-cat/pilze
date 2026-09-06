@@ -28,6 +28,7 @@ from . import auth, regen, render
 BASE = Path(__file__).resolve().parent
 MAPS_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
 PHOTO_CACHE = Path(__file__).resolve().parent.parent / "data" / "photos"
+AOI_GEOJSON = Path(__file__).resolve().parent.parent / "data" / "aoi" / "aoi.geojson"
 
 app = FastAPI(title="Pilze")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
@@ -233,6 +234,16 @@ def suitability_bounds(request: Request, species: str):
     return JSONResponse(bounds) if bounds else Response(status_code=404)
 
 
+@app.get("/api/aoi")
+def aoi(request: Request):
+    """Confini dell'area con dati tematici (BZ + TN + VE) — il limite delle mappe."""
+    if not _guard(request):
+        return Response(status_code=401)
+    if not AOI_GEOJSON.exists():
+        return JSONResponse({"type": "FeatureCollection", "features": []})
+    return JSONResponse(json.loads(AOI_GEOJSON.read_text(encoding="utf-8")))
+
+
 @app.get("/api/pronte/{species}")
 def pronte(request: Request, species: str):
     if not _guard(request):
@@ -267,7 +278,12 @@ def pins(request: Request):
                       "properties": {"id": o["id"], "species": o.get("species"),
                                      "phase": o.get("phase"), "weight_g": o.get("weight_g"),
                                      "abundance": o.get("abundance"), "is_blank": o.get("is_blank"),
-                                     "ts": o.get("ts_submit"), "photo": bool(o.get("photo_file_id"))},
+                                     # il giorno dell'uscita, non quello dell'invio: il pin
+                                     # deve dire quando eri lì (fallback sui vecchi record)
+                                     "ts": o.get("obs_date") or (o.get("ts_submit") or "")[:10],
+                                     "target": o.get("target_species"),
+                                     "effort_min": o.get("effort_min"),
+                                     "photo": bool(o.get("photo_file_id"))},
                       "geometry": {"type": "Point", "coordinates": [o["lon"], o["lat"]]}})
     return JSONResponse({"type": "FeatureCollection", "features": feats})
 

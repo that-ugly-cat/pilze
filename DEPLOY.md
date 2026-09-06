@@ -8,8 +8,8 @@ Stack: Docker Compose (web + bot + poller) dietro Caddy (HTTPS), pattern borant.
 - Caddy come reverse proxy.
 
 ## Cosa viaggia e cosa no
-- **Nel repo (git):** codice + `profiles/` + `config/` + **le mappe statiche** `data/maps/idoneita_*.tif` (piccole).
-- **NON nel repo (restano locali/da rigenerare):** layer grezzi (DEM, forestale, geologia, WorldCover, canopy) — servono solo a *generare* le mappe, non a runtime.
+- **Nel repo (git):** codice + `profiles/` + `config/` + **l'AOI** `data/aoi/` (confini BZ+TN+VE, ~300 KB: serve sia alla maschera dei provider sia al layer confini della web app).
+- **NON nel repo:** i layer grezzi (DEM, forestale, geologia, WorldCover, canopy), che servono solo a *generare* le mappe, e **le mappe statiche stesse** `data/maps/idoneita_*.tif`. Erano versionate finché pesavano 600 KB l'una; a passo 200 m sono 5 MB × 8 specie, cioè ~40 MB di binari a ogni rigenerazione. Ora si generano **sul VPS** col bottone «Rigenera» dell'admin, e vivono nel volume.
 - **Volumi persistenti sul VPS** (`./data`): DB osservazioni/meteo/utenti + foto + il `pronte_oggi_*.geojson` ricalcolato dal poller.
 
 ## Passi
@@ -38,13 +38,22 @@ pilze.borant.eu {
 ```
 
 ## Aggiornare le mappe statiche
-Si rigenerano **in locale** (dove ci sono i layer grezzi):
-```bash
-python -m gis.make_map            # tutte le specie
-git add data/maps/idoneita_*.tif && git commit -m "maps: rigenerate" && git push
-```
-poi sul VPS: `git pull && docker compose restart web poller`.
+Dall'admin della web app, bottone **Rigenera** (gira `gis.make_map` nel container, un core,
+GDAL/BLAS a 1 thread). Dura un paio d'ore sull'intera griglia: le mappe vecchie restano
+servite finché non finisce. In locale `python -m gis.make_map` fa lo stesso, ma il
+risultato non si spinge più via git — vedi «Cosa viaggia e cosa no».
+
+Serve rigenerare dopo: un cambio di profilo che tocca `static_envelope` o `host_genera`,
+un layer nuovo, o un cambio dell'AOI.
 
 ## Note
 - Cold-start meteo: le somme di pioggia mobili si riempiono dopo ~2–4 settimane di poller; l'umidità del suolo dà segnale dal giorno 1.
 - Bot **live subito** = inizia a raccogliere ground-truth (stagione). I ritrovamenti sono **condivisi** tra gli account.
+- **Aggiornamento su un VPS che ha già le mappe rigenerate in loco.** Da quando le mappe
+  non sono più tracciate, un `git pull` non le tocca. La prima volta però il repo locale le
+  ha ancora come file tracciati e modificati, quindi il pull si rifiuta: mettere le mappe
+  vive al sicuro fuori dal repo, riportare `data/maps` allo stato del git, `git pull`,
+  rimettere le mappe al loro posto, `docker compose up -d --build`.
+- I profili **vivi** stanno nel volume (`data/profiles/`) e si modificano dall'editor
+  online: un `git pull` che cambia `profiles/` NON li aggiorna (il seed avviene solo se la
+  cartella è vuota). Le tarature vanno incollate nell'editor.

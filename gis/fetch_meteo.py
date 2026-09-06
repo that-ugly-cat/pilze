@@ -130,9 +130,42 @@ def gap_report(cells) -> None:
         print("  archivio aggiornato, nessun buco")
 
 
+def observed_meteo_cells(cells_map: dict) -> int:
+    """Aggiunge al set da pollare le celle dove qualcuno ha loggato qualcosa.
+
+    Senza questo il poller archivia il meteo SOLO dove il modello statico crede già ai
+    funghi (idoneità > 0.4): un ritrovamento in una cella che il modello giudica mediocre
+    resta senza storia meteo, quindi inutilizzabile dal learner. Sono esattamente le
+    osservazioni più capaci di correggere il modello — il sistema si taglierebbe fuori
+    dai propri dati di smentita. Ritorna quante celle sono state aggiunte.
+    """
+    from bot import db as obsdb
+
+    try:
+        conn = obsdb.connect()
+        rows = conn.execute("SELECT DISTINCT lat, lon FROM observations "
+                            "WHERE lat IS NOT NULL").fetchall()
+        conn.close()
+    except Exception as e:                       # DB assente o schema vecchio: non bloccare il poll
+        print(f"  (osservazioni non leggibili: {e})")
+        return 0
+    added = 0
+    for r in rows:
+        _, mcid = grid.assign(r["lat"], r["lon"])
+        if mcid not in cells_map:
+            cells_map[mcid] = grid.cell_center(mcid)
+            added += 1
+    return added
+
+
 def main(argv):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     daily = "--daily" in argv
+    # I cell_id delle osservazioni restano NULL alla cattura (il bot non dipende dal GIS):
+    # il poller notturno è il posto naturale dove assegnarli. Idempotente.
+    from .assign_cells import backfill
+    if (n_assigned := backfill()):
+        print(f"cell_id assegnati a {n_assigned} osservazioni")
     sp = [a for a in argv if not a.startswith("-")] or all_species()
     tifs = [MAPS_DIR / f"idoneita_{s}.tif" for s in sp]
     cells_map = {}
@@ -143,8 +176,11 @@ def main(argv):
         # idoneità > 0.4 lì. Nessun cap numerico → tutto il bosco d'interesse VE+TN.
         for cid, la, lo in candidate_meteo_cells(tif):
             cells_map[cid] = (la, lo)                           # dedup fra specie
+    n_candidate = len(cells_map)
+    extra = observed_meteo_cells(cells_map)
     cells = [(cid, la, lo) for cid, (la, lo) in cells_map.items()]
-    print(f"specie: {', '.join(sp)}  |  celle candidate: {len(cells)}")
+    print(f"specie: {', '.join(sp)}  |  celle candidate: {n_candidate}"
+          + (f"  |  + {extra} da osservazioni fuori candidatura" if extra else ""))
 
     days = 3 if daily else BACKFILL_DAYS
     if not daily:

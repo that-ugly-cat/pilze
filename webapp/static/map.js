@@ -15,7 +15,7 @@ const isTouch = window.matchMedia('(hover: none)').matches;   // niente hover (t
 
 const sel = document.getElementById('species');
 const status = document.getElementById('status');
-let pronteLayer = null, pinsLayer = null, topLayer = null;
+let pronteLayer = null, pinsLayer = null, topLayer = null, aoiLayer = null;
 
 function setStatus(t) { status.textContent = t; }
 
@@ -214,14 +214,39 @@ async function loadPins() {
       const color = p.is_blank ? '#888' : '#2a7';
       const m = L.circleMarker(ll, { radius: 5, color: '#134', weight: 1, fillColor: color, fillOpacity: 0.9 });
       let html = p.is_blank ? '<b>uscita a vuoto</b>' : `<b>${p.species || '?'}</b>`;
+      if (p.is_blank && p.target) html += `<br>cercavo: ${p.target}`;
       if (p.phase) html += `<br>fase: ${p.phase}`;
       if (p.weight_g) html += `<br>${p.weight_g} g`;
       if (p.abundance) html += `<br>${p.abundance}`;
+      if (p.effort_min) html += `<br>ricerca: ~${p.effort_min} min`;
       html += `<br><small>${p.ts || ''}</small>`;
       if (p.photo) html += `<br><img src="/photo/${p.id}" style="max-width:180px;margin-top:4px;border-radius:4px">`;
       return m.bindPopup(html);
     }
   }).addTo(map);
+}
+
+// --- confini area dati (BZ + TN + VE) -------------------------------------- //
+// Fuori da qui forestale e geologia non arrivano: le mappe si fermano al confine,
+// quindi il contorno spiega il bordo dell'idoneità invece di lasciarlo misterioso.
+map.createPane('aoi');
+map.getPane('aoi').style.zIndex = 410;                    // sopra il topo, sotto i dati
+
+async function loadAoi() {
+  const on = document.getElementById('l-aoi').checked;
+  document.getElementById('aoi-hint').classList.toggle('off', !on);
+  if (aoiLayer) { map.removeLayer(aoiLayer); aoiLayer = null; }
+  if (!on) return;
+  const gj = await (await fetch('/api/aoi')).json();
+  if (!gj.features.length) { setStatus('confini non disponibili'); return; }
+  // Doppia linea: alone chiaro sotto, tratteggio scuro sopra. Sul topografico (marroni
+  // di rilievo, verdi di pianura, gialli di strada) una linea sola sparisce sempre.
+  aoiLayer = L.layerGroup([
+    L.geoJSON(gj, { pane: 'aoi', interactive: false,
+      style: { color: '#fff', weight: 5, opacity: 0.75, fill: false } }),
+    L.geoJSON(gj, { pane: 'aoi', interactive: false,
+      style: { color: '#1c2b36', weight: 2, dashArray: '7 4', fill: false } })
+  ]).addTo(map);
 }
 
 // --- trova spot migliori --------------------------------------------------- //
@@ -250,7 +275,7 @@ async function findTopSpots() {
 }
 document.getElementById('find-spots').addEventListener('click', findTopSpots);
 
-function reloadAll() { loadStatic(); loadPronte(); loadPins(); }
+function reloadAll() { loadStatic(); loadPronte(); loadPins(); loadAoi(); }
 sel.addEventListener('change', () => { loadStatic(); loadPronte(); clearTopSpots(); });
 document.getElementById('l-static').addEventListener('change', loadStatic);
 document.getElementById('l-pronte').addEventListener('change', loadPronte);
@@ -259,4 +284,5 @@ document.getElementById('pronte-op').addEventListener('input', () => {
   applyPronteOpacity();
 });
 document.getElementById('l-pins').addEventListener('change', loadPins);
+document.getElementById('l-aoi').addEventListener('change', loadAoi);
 reloadAll();

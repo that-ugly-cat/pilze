@@ -5,6 +5,10 @@
 CREATE TABLE IF NOT EXISTS observations (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_submit       TEXT NOT NULL,          -- ISO8601, ora di invio (offline Telegram accoda)
+    -- Giorno dell'OSSERVAZIONE, distinto dall'invio: l'asse dinamico gira attorno a
+    -- days_since_trigger e la finestra del lag è di dieci giorni, quindi loggare la sera
+    -- dopo sposterebbe il conto. Il learner legge questo, ts_submit resta per l'audit.
+    obs_date        TEXT,                   -- ISO8601 date (YYYY-MM-DD)
     user_id         INTEGER,                -- chi ha loggato (privacy: coordinate = dati sensibili)
     lat             REAL,                   -- da location share (NON dall'EXIF della foto: strippato)
     lon             REAL,

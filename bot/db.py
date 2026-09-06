@@ -21,17 +21,37 @@ def connect(db_path: Path | str = DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+# Colonne aggiunte dopo la prima release: `CREATE TABLE IF NOT EXISTS` non le porta su
+# un DB già creato, quindi vanno aggiunte a mano. (colonna, tipo SQL).
+_MIGRATIONS = (("obs_date", "TEXT"),)
+
+
+def migrate(db_path: Path | str = DB_PATH) -> list[str]:
+    """Aggiunge le colonne mancanti a un DB esistente. Idempotente."""
+    conn = connect(db_path)
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(observations)")}
+    added = []
+    for col, sqltype in _MIGRATIONS:
+        if col not in have:
+            conn.execute(f"ALTER TABLE observations ADD COLUMN {col} {sqltype}")
+            added.append(col)
+    conn.commit()
+    conn.close()
+    return added
+
+
 def init_db(db_path: Path | str = DB_PATH) -> None:
     conn = connect(db_path)
     with open(SCHEMA_PATH, encoding="utf-8") as fh:
         conn.executescript(fh.read())
     conn.commit()
     conn.close()
+    migrate(db_path)
 
 
 # Campi accettati da insert_observation (allineati allo schema)
 _FIELDS = (
-    "ts_submit", "user_id", "lat", "lon", "species", "target_species", "is_blank",
+    "ts_submit", "obs_date", "user_id", "lat", "lon", "species", "target_species", "is_blank",
     "phase", "old_reason", "abundance", "weight_g", "effort_min",
     "photo_file_id", "id_verified", "static_cell_id", "meteo_cell_id",
 )

@@ -21,6 +21,12 @@ from . import boyce, grid
 class FeatureProvider(ABC):
     """Fornisce il dict di feature statiche per una cella (spec §7.5)."""
 
+    #: Se True, un None di questo provider annulla l'intera cella nel composite.
+    #: Default False: un layer tematico che tace lascia il fattore neutro
+    #: ("unknown != absent"). Lo alzano solo i provider che definiscono *dove*
+    #: ha senso scorare — l'AOI (area con dati tematici) e il DEM.
+    is_required = False
+
     @abstractmethod
     def features(self, lat: float, lon: float) -> dict | None:
         """Feature per il punto, o None se fuori copertura/dati mancanti."""

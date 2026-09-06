@@ -17,15 +17,21 @@ from pathlib import Path
 from engine.profiles import load_profiles
 
 from . import occurrences
-from .providers import (CanopyProvider, CompositeFeatureProvider, DEMProvider,
+from .providers import (AOIProvider, CanopyProvider, CompositeFeatureProvider, DEMProvider,
                         ForestProvider, GeologyProvider, SoilProvider,
                         WorldCoverProvider)
 from .suitability import validate_species
 
 
 def build_provider(include_soil: bool = False,
-                   include_geology: bool = False) -> tuple[CompositeFeatureProvider, list[str]]:
-    """Compone i provider (DEM sempre; forestale se ci sono i dati; soil_ph opzionale).
+                   include_geology: bool = False,
+                   include_aoi: bool = True) -> tuple[CompositeFeatureProvider, list[str]]:
+    """Compone i provider (AOI e DEM sempre; forestale se ci sono i dati; soil_ph opzionale).
+
+    L'AOI (ON di default, `--no-aoi` per spegnerlo) taglia presenze E background fuori
+    da BZ+TN+VE. Cambia il RIFERIMENTO del Boyce, non solo il numero di punti: il
+    "disponibile" non è più il rettangolo del bbox ma l'area davvero rilevata, quindi i
+    valori non sono confrontabili con quelli misurati prima del ritaglio.
 
     Due sorgenti soil_ph, entrambe OFF di default:
     - --geology (CARG, `GeologyProvider`): substrato litologico TN. MIGLIORA il segnale
@@ -34,7 +40,12 @@ def build_provider(include_soil: bool = False,
     - --soil (SoilGrids, `SoilProvider`): pH globale, troppo levigato, DEGRADA (edulis
       +0.71→+0.62). Tenuto solo per confronto.
     """
-    providers, active = [DEMProvider()], ["DEM (quota/pendenza/esposizione)"]
+    providers, active = [], []
+    if include_aoi:
+        providers.append(AOIProvider())           # taglia il fuori BZ+TN+VE (presenze E background)
+        active.append("AOI (BZ+TN+VE)")
+    providers.append(DEMProvider())
+    active.append("DEM (quota/pendenza/esposizione)")
     providers.append(ForestProvider.cfi())        # forestale: SOLO CFI2020 (VE+TN+BZ completo)
     active.append("forestale/host (CFI)")
     try:
@@ -86,7 +97,8 @@ def main() -> None:
                               encoding="utf-8"))
     reg = load_profiles()
     provider, active = build_provider(include_soil="--soil" in sys.argv,
-                                      include_geology="--geology" in sys.argv)
+                                      include_geology="--geology" in sys.argv,
+                                      include_aoi="--no-aoi" not in sys.argv)
     presence = load_presence(cfg["bbox_wgs84"])
 
     print("Continuous Boyce Index — provider attivi: " + " + ".join(active))

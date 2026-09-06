@@ -9,9 +9,16 @@ venv/
 *.grib2
 .pytest_cache/
 
-# Dati: grezzi (DEM/forestale/geologia/worldcover/canopy) e DB restano LOCALI.
-# Versionate solo le mappe statiche di idoneità (piccole) → deploy via git clone.
+# Dati: grezzi (DEM/forestale/geologia/worldcover/canopy), mappe e DB restano LOCALI.
+# Le mappe di idoneità erano versionate finché pesavano 600 KB l'una; a passo 200 m sono
+# 5 MB × 8 specie, cioè ~40 MB di binari nuovi a ogni rigenerazione. Ora si generano sul
+# VPS (bottone Rigenera) e vivono nel volume dati.
 data/*
-!data/maps/
-data/maps/*
-!data/maps/idoneita_*.tif
+
+# AOI (confini amministrativi ISTAT dissolti): piccola e serve sia alla maschera dei
+# provider sia al layer confini della web app → versionata, così il VPS la prende dal
+# git clone senza riscaricare l'ISTAT.
+!data/aoi/
+data/aoi/*
+!data/aoi/aoi.gpkg
+!data/aoi/aoi.geojson

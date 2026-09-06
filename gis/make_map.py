@@ -25,7 +25,7 @@ from rasterio.transform import from_origin
 from engine.profiles import load_profiles
 from engine.static_scorer import static_suitability
 
-from .providers import (CanopyProvider, CompositeFeatureProvider, DEMProvider,
+from .providers import (AOIProvider, CanopyProvider, CompositeFeatureProvider, DEMProvider,
                         ForestProvider, GeologyProvider, WorldCoverProvider)
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
@@ -34,8 +34,11 @@ CRS = "EPSG:32632"
 
 
 def build_provider():
+    # AOI per primo: taglia tutto ciò che sta fuori da BZ+TN+VE, dove i layer tematici
+    # non arrivano e l'host sconosciuto (neutro) gonfierebbe il punteggio. Esce subito,
+    # quindi risparmia anche le query pesanti sul fuori-area.
     # Forestale: SOLO CFI2020 (VE+TN+BZ completo) — patchwork VE/TN eliminato.
-    ps, active = [DEMProvider(), ForestProvider.cfi()], ["DEM", "forestale-CFI"]
+    ps, active = [AOIProvider(), DEMProvider(), ForestProvider.cfi()], ["AOI", "DEM", "forestale-CFI"]
     # Gate bosco + canopy + suolo (soil_ph). Il suolo TN/BZ nella mappa aspetta la
     # geologia LOCALE (il TN è REST, non scala su 150k celle); il Veneto è locale → attivo.
     for label, ctor in [("worldcover-gate", WorldCoverProvider),

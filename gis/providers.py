@@ -20,6 +20,7 @@ DEM_DIR = Path(__file__).resolve().parent.parent / "data" / "dem"
 FOREST_DIR = Path(__file__).resolve().parent.parent / "data" / "forest"
 SOIL_PATH = Path(__file__).resolve().parent.parent / "data" / "soil" / "phh2o_0-5cm.tif"
 CROSSWALK_PATH = Path(__file__).resolve().parent.parent / "config" / "crosswalk.yaml"
+AOI_PATH = Path(__file__).resolve().parent.parent / "data" / "aoi" / "aoi.gpkg"
 IGH = "+proj=igh +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
 
 
@@ -34,12 +35,51 @@ def _aspect_to_class(aspect_deg: float, slope_deg: float) -> str:
     return "neutral"                          # E / O
 
 
+class AOIProvider(FeatureProvider):
+    """Maschera dell'area con dati tematici: Bolzano + Trento + Veneto. Fuori → None.
+
+    Non porta feature (ritorna un dict vuoto): serve solo a dire DOVE ha senso scorare.
+    Il motore tratta l'host sconosciuto come neutro (§7.5, "unknown != absent"), regola
+    giusta dentro un'area rilevata e sbagliata fuori, dove promuoverebbe il
+    fuori-copertura come se l'ospite fosse quello giusto. Questo provider è il confine
+    di validità di quella regola: `is_required`, quindi un None taglia la cella.
+
+    Va messo PRIMO nel composite — fa uscire prima delle query raster/vettoriali.
+    """
+
+    is_required = True
+
+    def __init__(self, gpkg_path: Path | str = AOI_PATH):
+        import geopandas as gpd
+        import shapely
+        from pyproj import Transformer
+
+        path = Path(gpkg_path)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"AOI mancante ({path}). Esegui: python -m gis.fetch_boundaries")
+        aoi = gpd.read_file(path).to_crs("EPSG:32632")
+        self.units = list(aoi["unit"])
+        self._geom = shapely.union_all(aoi.geometry.values)
+        shapely.prepare(self._geom)                 # indice interno: contains_xy ~µs
+        self._contains = shapely.contains_xy
+        self.to_utm = Transformer.from_crs("EPSG:4326", "EPSG:32632", always_xy=True)
+
+    def features(self, lat: float, lon: float) -> dict | None:
+        x, y = self.to_utm.transform(lon, lat)
+        return {} if self._contains(self._geom, x, y) else None
+
+
 class DEMProvider(FeatureProvider):
     """Quota + pendenza + esposizione da un mosaico di tile Copernicus GLO-30.
 
     Legge una finestra 3×3 attorno al punto e applica il metodo di Horn (pendenza
     ed esposizione). CRS dei tile: EPSG:4326 → converte i passi in metri alla latitudine.
+    Senza quota/pendenza i fattori ambientali resterebbero neutri e la cella verrebbe
+    sovrastimata → `is_required`, come l'AOI.
     """
+
+    is_required = True
 
     def __init__(self, dem_dir: Path | str = DEM_DIR):
         self.datasets = [rasterio.open(p) for p in sorted(Path(dem_dir).glob("*.tif"))]
@@ -417,10 +457,12 @@ class WorldCoverProvider(FeatureProvider):
 
 
 class CompositeFeatureProvider(FeatureProvider):
-    """Fonde le feature di più provider (DEM + forestale + suolo + disturbo).
+    """Fonde le feature di più provider (AOI + DEM + forestale + suolo + disturbo).
 
     Ordine = priorità crescente: i provider successivi sovrascrivono le chiavi.
-    Se il DEM (base) non copre il punto → None (fuori area).
+    Un provider con `is_required` che ritorna None azzera la cella (fuori area);
+    gli altri, tacendo, lasciano semplicemente il fattore neutro. Mettere per primo
+    il provider più selettivo (l'AOI) fa uscire subito e risparmia le query pesanti.
     """
 
     def __init__(self, providers: list[FeatureProvider], require_first: bool = True):
@@ -431,7 +473,7 @@ class CompositeFeatureProvider(FeatureProvider):
         merged: dict = {}
         for i, p in enumerate(self.providers):
             f = p.features(lat, lon)
-            if f is None and i == 0 and self.require_first:
+            if f is None and ((i == 0 and self.require_first) or p.is_required):
                 return None
             if f:
                 merged.update(f)

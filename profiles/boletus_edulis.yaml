@@ -30,10 +30,20 @@ species:
   extra_static_layers: []
   phenology_months: [8, 9, 10, 11]     # fine estate in quota → autunno a quote basse
 
-  dynamic_triggers:      # PROVVISORI — da tarare
-    rain_window_days: 15
-    cumulative_rain_mm: 45
-    thermal_shock_c: 5
-    soil_temp_c: { min: 8, max: 18 }
-    lag_days: { opt: [10, 20] }
-    moisture_floor: 0.22
+  # Tarati il 6 set 2026 su `python -m gis.replay` (198k celle-giorno dell'archivio,
+  # celle dentro l'AOI) + il primo ritrovamento di campo (Cima d'Asta, 46.13515/11.68636).
+  # Coi valori vecchi la cella del ritrovamento non si è mai accesa in 48 giorni, e in
+  # tutta la stagione solo lo 0.34% delle celle-giorno arrivava a "pronto".
+  dynamic_triggers:
+    # 25 e non 15: la finestra deve contenere la pioggia che ha innescato la buttata che
+    # si sta valutando, e lag_days arriva a 20. Con 15 gg il 6 set la cella di raccolta
+    # vedeva 31 mm perché l'innesco (25 ago) era già uscito dalla finestra; con 25 ne vede 78.
+    rain_window_days: 25
+    cumulative_rain_mm: 60      # ~p40 della cumulata a 25 gg, come i vecchi 45 mm lo erano a 15
+    thermal_shock_c: 2          # i 5 °C stavano al p93 dello shock osservato: vetavano sempre
+    soil_temp_c: { min: 8, max: 18 }     # non toccato: 14.8 °C al ritrovamento, in banda
+    lag_days: { opt: [10, 20] }          # non toccato: dst=12 al ritrovamento, l'unico prior confermato
+    # 0.12 è una rete anti-siccità, non più un discriminante: l'umidità assoluta di ICON-D2
+    # dipende dalla tessitura del box, quindi non è confrontabile fra celle. Il discriminante
+    # vero è un indice RELATIVO alla storia della cella — da fare.
+    moisture_floor: 0.12
