@@ -5,7 +5,9 @@ Sistema per **mappare le aree produttive** per specie di funghi, **prevedere le 
 tramite i ritrovamenti sul campo. Ambito: Veneto + Trentino. 6 profili di bosco
 (micorriziche); il motore supporta anche i **saprotrofi di prato** (gate habitat).
 
+**Come funziona, e da dove vengono i dati: [docs/COME-FUNZIONA.md](docs/COME-FUNZIONA.md).**
 Spec completa: `../ono-wiki/raw/strumenti/mappa-funghi-spec.md`. Deploy: `DEPLOY.md`.
+Piano di lavoro: `docs/ROADMAP.md`.
 
 ```
 predizione(cella, specie, giorno) = idoneità_statica(cella, specie) × readiness_dinamica(meteo, specie)

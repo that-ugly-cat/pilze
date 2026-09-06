@@ -25,6 +25,23 @@
       mediocre abbassa ma non azzera. I <b>gate</b> invece azzerano (host assente, fuori stagione,
       suolo troppo secco, fuori dall'habitat giusto).</p>
 
+    <h2>Due cose che non stanno nel profilo, e che fanno inciampare</h2>
+    <ul>
+      <li><b>La mappa si ferma a Bolzano, Trento e Veneto.</b> Fuori da lì il forestale e la
+        geologia non arrivano, e un host sconosciuto vale «neutro»: promuoverebbe il
+        fuori-copertura come se l'ospite fosse quello giusto. Perciò fuori non si scora
+        affatto. Il layer <i>Confini area dati</i> sulla mappa disegna quel limite: se
+        l'idoneità si interrompe su una linea, è quella.</li>
+      <li><b>C'è una soglia di «carica» che nessun profilo contiene.</b> Una cella compare
+        nell'idoneità dinamica solo se pioggia, temperatura del suolo e shock termico
+        insieme superano <code>0.5</code>, <i>prima</i> di considerare il timing. Si può
+        allargare una soglia nel profilo e non vedere cambiare nulla, perché a fermare
+        tutto è questa. Sta in <code>engine/dynamic_scorer.py</code>
+        (<code>CHARGE_THR</code>).</li>
+    </ul>
+    <p class="hint">Lo spiegone completo dei due assi e delle fonti dei dati sta nel repo,
+      in <code>docs/COME-FUNZIONA.md</code>.</p>
+
     <hr>
     <h2>Identità</h2>
     <table>

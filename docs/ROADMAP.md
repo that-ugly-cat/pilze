@@ -1,17 +1,23 @@
-# Roadmap — Mappa Funghi
+# Roadmap — Pilze
 
-Ordine di costruzione (spec §8). Stato: **MVP end-to-end** (18 lug 2026).
+Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
+(agg. 6 set 2026). Per come funziona il modello e da dove vengono i dati:
+[COME-FUNZIONA.md](COME-FUNZIONA.md).
 
 ## v1 — subito, senza attesa di storico
 - [x] **Motore generico** + profili delle 6 specie (scoring §7.5): membership sfumate,
       scorer statico (host-gate × media geometrica), scorer dinamico, combiner. *Testato.*
-- [x] **Bot Telegram** di cattura (ritrovamenti + zeri + mirato + fase + foto) → SQLite. *Runnable con token.*
+- [x] **Cattura** (ritrovamenti + zeri + mirato + fase + foto + giorno dell'uscita) → SQLite.
+      Era un bot Telegram; dal 6 set 2026 è il form `/log` della web app, più la scheda `/me`
+      (casa, password, storico modificabile). Il servizio `bot` è fuori dal compose.
 - [~] **Traccia A GIS** — acquisizione layer VE+TN → mappa idoneità statica (vedi `gis/README.md`).
       - [x] Ossatura: griglia (`grid.py`), GBIF (`occurrences.py`), Boyce (`boyce.py`), driver + `FeatureProvider`.
       - [x] **DEM** (`DEMProvider`, Copernicus GLO-30, `fetch_dem.py`): quota/pendenza/esposizione.
       - [x] **Forestale Veneto + Trentino** (`ForestProvider.veneto()/.trentino()`, `fetch_forest.py`): host via crosswalk.
             VE = Carta Tipi Forestali (38k poligoni); TN = SIGFAT (174k unità, copertura parziale piani di gestione).
-            Boyce DEM+VE+TN: edulis +0.71 (↑ monotòno), pinophilus +0.87, cibarius +0.78 (`python -m gis.validate`).
+            Boyce DEM+VE+TN (lug 2026): edulis +0.71, pinophilus +0.87, cibarius +0.78.
+            **Superati**: misurati senza ritaglio AOI e su un altro set GBIF, quindi non
+            confrontabili coi numeri di oggi (vedi README). `python -m gis.validate`.
       - [~] Suolo → soil_ph: due fonti. **SoilGrids** (`SoilProvider`) degrada (edulis +0.71→+0.62) → scartato (`--soil`).
             **CARG/substrato** (`GeologyProvider`, ArcGIS REST PAT) MIGLIORA (edulis +0.74→+0.80, cibarius +0.78→+0.88)
             anche col 25% di copertura → preferito (`--geology`). Da indurire: quaternario fallback, Veneto, bulk-download.
@@ -33,7 +39,18 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end** (18 lug 2026).
 - [x] `predizione = statica × readiness` → celle **"pronte oggi"** per specie (`predict_today.py`).
       Verificato su dati reali (metà-luglio: estatino/finferlo sì, edulis no). Docker + deploy borant (`DEPLOY.md`).
 - [ ] (opz.) Temperatura in quota (lapse rate locale, §5); ancoraggio pluviometrico ARPAV/Meteotrentino.
-- [ ] **Notifiche via bot** (trigger: readiness che scatta) — active learning §6.3.
+- [ ] **Notifiche** al trigger di readiness — active learning §6.3. Con l'uscita del bot il
+      canale di consegna è scoperto: serve un mittente Telegram in sola uscita (il token
+      resta in `.env`) oppure web push dalla web app.
+
+## Ritaglio e taratura (6 set 2026)
+- [x] **AOI** (`fetch_boundaries.py`, `AOIProvider`): le mappe si fermano dove finiscono i layer
+      tematici (Bolzano, Trento, Veneto). Fuori, host sconosciuto = neutro promuoveva il
+      fuori-copertura: −47% di celle sopra 0.4, e il Boyce si ri-taglia di conseguenza.
+- [x] **`gis/replay.py`**: falsificazione dell'asse dinamico senza etichette, rigirando lo scorer
+      su ogni giorno passato dell'archivio. Col profilo di luglio: 0.34% di celle-giorno "pronto".
+- [x] **Prima verità di campo** + ritaratura di `boletus_edulis` (README).
+- [ ] Tarare gli altri profili con lo stesso metodo; il replay c'è, i dati di campo no.
 
 ## v4 — apprendimento
 - [ ] **Learner statico**: presenza+zeri → pesi statici, update **grossolano** (sposta il profilo,
