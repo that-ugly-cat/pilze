@@ -25,10 +25,6 @@ services:
     ports:
       - "127.0.0.1:8790:8000"    # porta host 8790 (registro porte borant) → Caddy
 
-  bot:
-    <<: *pilze
-    command: python -m bot.bot
-
   poller:
     <<: *pilze
     # ICON-D2 archivia in avanti (§9): fetch giornaliero + ricalcolo "pronte oggi".

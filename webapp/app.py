@@ -12,9 +12,10 @@ import json
 import os
 import re
 import urllib.request
+from datetime import date, datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import (HTMLResponse, JSONResponse, RedirectResponse, Response)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -101,9 +102,99 @@ def home(request: Request):
     u = _user(request)
     if not u:
         return RedirectResponse("/login", status_code=303)
-    species = [{"id": p.id, "common": p.common_name, "scientific": p.scientific_name}
-               for p in sorted(REG.values(), key=lambda p: p.common_name)]
-    return templates.TemplateResponse(request, "map.html", {"user": u, "species": species})
+    return templates.TemplateResponse(request, "map.html",
+                                      {"user": u, "species": _species_list()})
+
+
+# --- log delle uscite ------------------------------------------------------ #
+# La cattura era un bot Telegram. Il pin trascinabile su mappa batte la posizione nativa
+# nel caso che conta davvero — la sera, a casa, quando il posto lo ricordi ma non ci sei
+# più — e chi logga non ha bisogno di Telegram. Resta un vincolo: senza campo non si
+# salva, quindi si scrive dopo, e per questo il GIORNO è un campo e non l'ora di invio.
+KINDS = {"found", "blank", "target"}
+PHASES = {"primordi", "buono", "vecchio"}
+OLD_REASONS = {"senescente", "abortito"}
+ABUNDANCE = {"pochi", "medi", "tanti"}
+EFFORT_MIN = {15, 60, 150, 240}
+
+
+def _species_list():
+    return [{"id": p.id, "common": p.common_name, "scientific": p.scientific_name}
+            for p in sorted(REG.values(), key=lambda p: p.common_name)]
+
+
+def _log_page(request: Request, u: dict, prefill: dict, saved=None, error=None):
+    return templates.TemplateResponse(request, "log.html", {
+        "user": u, "species": _species_list(), "prefill": prefill, "saved": saved,
+        "error": error, "today": date.today().isoformat()})
+
+
+@app.get("/log", response_class=HTMLResponse)
+def log_form(request: Request, again: int | None = None):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    prefill = {}
+    if again:      # "altra specie, stesso punto": si riparte da posizione e giorno
+        rows = [o for o in obsdb.all_observations() if o["id"] == again]
+        if rows:
+            prefill = {k: rows[0].get(k) for k in ("lat", "lon", "obs_date")}
+    return _log_page(request, u, prefill)
+
+
+@app.post("/log", response_class=HTMLResponse)
+async def log_save(request: Request,
+                   kind: str = Form(...), obs_date: str = Form(...),
+                   lat: float = Form(...), lon: float = Form(...),
+                   species: str = Form(""), phase: str = Form(""),
+                   old_reason: str = Form(""), abundance: str = Form(""),
+                   weight_g: str = Form(""), effort_min: str = Form(""),
+                   photo: UploadFile | None = File(None)):
+    u = _user(request)
+    if not u:
+        return RedirectResponse("/login", status_code=303)
+    prefill = {"lat": lat, "lon": lon, "obs_date": obs_date}
+    if kind not in KINDS:
+        return _log_page(request, u, prefill, error="Tipo di uscita non valido.")
+    try:
+        d = date.fromisoformat(obs_date)
+    except ValueError:
+        return _log_page(request, u, prefill, error="Data non valida.")
+    if d > date.today():
+        return _log_page(request, u, prefill, error="La data è nel futuro.")
+    if kind != "blank" and species not in REG:
+        return _log_page(request, u, prefill, error="Specie non riconosciuta.")
+
+    obs = {"ts_submit": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "obs_date": d.isoformat(), "logged_by": u["username"], "lat": lat, "lon": lon,
+           "is_blank": 0 if kind == "found" else 1, "id_verified": 1}
+    if kind == "found":
+        obs["species"] = species
+        obs["phase"] = phase if phase in PHASES else None
+        if obs["phase"] == "vecchio" and old_reason in OLD_REASONS:
+            obs["old_reason"] = old_reason
+        obs["abundance"] = abundance if abundance in ABUNDANCE else None
+        if weight_g.strip():
+            try:
+                obs["weight_g"] = float(weight_g.replace(",", "."))
+            except ValueError:
+                return _log_page(request, u, prefill, error="Peso non valido.")
+    else:
+        if kind == "target":
+            obs["target_species"] = species
+        try:
+            e = int(effort_min)
+        except ValueError:
+            e = 0
+        obs["effort_min"] = e if e in EFFORT_MIN else None
+
+    obs_id = obsdb.insert_observation(obs)
+    if photo is not None and photo.filename:
+        # il servizio foto legge da data/photos/<id>.jpg: scrivendo lì, /photo/<id> funziona
+        # senza cambiare nulla (era la cache dei file scaricati da Telegram).
+        PHOTO_CACHE.mkdir(parents=True, exist_ok=True)
+        (PHOTO_CACHE / f"{obs_id}.jpg").write_bytes(await photo.read())
+    return _log_page(request, u, {}, saved=obs_id)
 
 
 @app.get("/admin", response_class=HTMLResponse)

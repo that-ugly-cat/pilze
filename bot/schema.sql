@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS observations (
     -- days_since_trigger e la finestra del lag è di dieci giorni, quindi loggare la sera
     -- dopo sposterebbe il conto. Il learner legge questo, ts_submit resta per l'audit.
     obs_date        TEXT,                   -- ISO8601 date (YYYY-MM-DD)
-    user_id         INTEGER,                -- chi ha loggato (privacy: coordinate = dati sensibili)
+    logged_by       TEXT,                   -- username di chi ha loggato dal form
+    user_id         INTEGER,                -- id Telegram (storico, cattura via bot) (privacy: coordinate = dati sensibili)
     lat             REAL,                   -- da location share (NON dall'EXIF della foto: strippato)
     lon             REAL,
 

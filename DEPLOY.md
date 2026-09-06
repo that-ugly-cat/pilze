@@ -27,7 +27,7 @@ EOF
 # 3. su
 docker compose up -d --build
 ```
-- `web` → `127.0.0.1:8790` (Caddy proxy). `bot` → cattura Telegram (live). `poller` → fetch meteo + "pronte oggi" ogni 24 h (l'archivio ICON-D2 cresce in avanti, §9).
+- `web` → `127.0.0.1:8790` (Caddy proxy; la cattura è il form `/log`). `poller` → fetch meteo + "pronte oggi" ogni 24 h (l'archivio ICON-D2 cresce in avanti, §9).
 - L'admin iniziale è creato da `PILZE_ADMIN_USER/PASS` al primo avvio; poi crea gli altri account (fidati) da `/admin`.
 
 ## Caddy
@@ -48,7 +48,9 @@ un layer nuovo, o un cambio dell'AOI.
 
 ## Note
 - Cold-start meteo: le somme di pioggia mobili si riempiono dopo ~2–4 settimane di poller; l'umidità del suolo dà segnale dal giorno 1.
-- Bot **live subito** = inizia a raccogliere ground-truth (stagione). I ritrovamenti sono **condivisi** tra gli account.
+- La cattura è il form `/log` della web app: i ritrovamenti sono **condivisi** fra gli account.
+  `MAPPA_FUNGHI_BOT_TOKEN` resta in `.env` perché serve a servire le foto dei vecchi
+  record catturati via Telegram (e servirà alle notifiche).
 - **Aggiornamento su un VPS che ha già le mappe rigenerate in loco.** Da quando le mappe
   non sono più tracciate, un `git pull` non le tocca. La prima volta però il repo locale le
   ha ancora come file tracciati e modificati, quindi il pull si rifiuta: mettere le mappe

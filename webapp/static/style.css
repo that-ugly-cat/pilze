@@ -93,3 +93,23 @@ button:disabled { opacity: .5; cursor: default; }
 .doc ul li { margin: 3px 0; }
 .legend { font-size: 12px; }
 .legend i { width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+/* --- form di log ---------------------------------------------------------- */
+.off { display: none !important; }
+.banner { margin: 14px auto 0; width: min(680px, 92vw); }
+.card.wide h1 { font-size: 19px; margin: 0 0 4px; }
+.fld { display: block; font-size: 14px; }
+.fld select, .fld input[type=date], .fld input[type=number] {
+  display: block; width: 100%; padding: 8px; margin-top: 4px;
+  border: 1px solid #ccd; border-radius: 6px; }
+.fld input[type=file] { display: block; margin-top: 5px; font-size: 13px; }
+.fld .hint { display: block; margin-top: 3px; }
+.seg { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 12px; }
+.seg legend { font-size: 13px; color: #556; }
+.seg label { font-size: 14px; }
+.seg .hint { flex-basis: 100%; margin: 0; }
+.minimap { height: 300px; margin-top: 6px; border: 1px solid #ccd; border-radius: 6px; }
+button.primary { width: 100%; padding: 12px; font-size: 15px; margin-top: 4px; }
+.btnlink { display: block; text-align: center; padding: 9px 14px; margin: 8px 0 2px;
+  border-radius: 6px; background: #4a7; color: #fff; text-decoration: none; font-size: 14px; }
+.btnlink:hover { background: #3d6; text-decoration: none; }

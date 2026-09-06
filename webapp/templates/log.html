@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilze — logga un'uscita</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{{ asset('style.css') }}">
+</head><body class="admin">
+  <div class="topbar">
+    <span class="tb-brand">🍄 Pilze</span>
+    <a href="/log" class="active">Logga</a>
+    {% if user.is_admin %}<a href="/admin">Utenti</a>{% endif %}
+    <span class="tb-sp"></span>
+    <a href="/">← mappa</a>
+    <span class="tb-user">{{ user.username }}</span>
+    <a href="/logout">esci</a>
+  </div>
+
+  <div class="card wide">
+    {% if saved %}
+      <p class="hint ok banner">✅ Salvato (#{{ saved }}).
+        <a href="/log?again={{ saved }}">Aggiungi un'altra specie nello stesso punto</a> ·
+        <a href="/">vedila sulla mappa</a></p>
+    {% endif %}
+    {% if error %}<p class="hint bad banner">{{ error }}</p>{% endif %}
+
+    <form method="post" action="/log" enctype="multipart/form-data" id="logform">
+      <h1>Logga un'uscita</h1>
+
+      <fieldset class="seg">
+        <legend>Com'è andata?</legend>
+        <label><input type="radio" name="kind" value="found" checked> 🍄 Trovato</label>
+        <label><input type="radio" name="kind" value="blank"> 🚫 Vuoto</label>
+        <label><input type="radio" name="kind" value="target"> 🎯 Mirato a vuoto</label>
+        <p class="hint">Un vuoto <b>mirato</b> (cercavi una specie precisa, dove sai che c'è)
+          è uno zero forte sul <i>quando</i>. Un vuoto generico dice molto meno.</p>
+      </fieldset>
+
+      <label class="fld" id="fld-species">Specie
+        <select name="species">
+          {% for s in species %}<option value="{{ s.id }}">{{ s.common|capitalize }} — {{ s.scientific }}</option>{% endfor %}
+        </select>
+      </label>
+
+      <label class="fld">Giorno dell'uscita
+        <input type="date" name="obs_date" value="{{ prefill.obs_date or today }}" max="{{ today }}" required>
+        <span class="hint">Non quando lo scrivi: il meteo viene letto a questa data.</span>
+      </label>
+
+      <div class="fld">Dove
+        <div id="pin-map" class="minimap"></div>
+        <div class="row">
+          <button type="button" id="geo">📍 Dove sono adesso</button>
+          <span id="coords" class="hint">{% if prefill.lat %}{{ prefill.lat }}, {{ prefill.lon }}{% else %}tocca la mappa o trascina il pin{% endif %}</span>
+        </div>
+        <input type="hidden" name="lat" id="lat" value="{{ prefill.lat or '' }}" required>
+        <input type="hidden" name="lon" id="lon" value="{{ prefill.lon or '' }}" required>
+      </div>
+
+      <div id="found-only">
+        <label class="fld">Maturità
+          <select name="phase">
+            <option value="buono">👌 giusti</option>
+            <option value="primordi">🌱 primordi (troppo presto)</option>
+            <option value="vecchio">🍂 vecchi (troppo tardi)</option>
+          </select>
+        </label>
+        <label class="fld off" id="fld-oldreason">Perché vecchi?
+          <select name="old_reason">
+            <option value="senescente">🍂 senescente (buttata semplicemente tardi)</option>
+            <option value="abortito">🌵 abortito (condizioni girate, secco)</option>
+          </select>
+        </label>
+        <label class="fld">Quanti
+          <select name="abundance">
+            <option value="pochi">pochi (1–5)</option>
+            <option value="medi">medi (6–15)</option>
+            <option value="tanti">tanti (16+)</option>
+          </select>
+        </label>
+        <label class="fld">Peso raccolto in grammi <span class="hint">(facoltativo)</span>
+          <input type="number" name="weight_g" min="0" step="10" placeholder="—">
+        </label>
+        <label class="fld">Foto <span class="hint">(facoltativa)</span>
+          <input type="file" name="photo" accept="image/*" capture="environment">
+        </label>
+      </div>
+
+      <label class="fld off" id="fld-effort">Quanto hai cercato
+        <select name="effort_min">
+          <option value="15">meno di 30 min</option>
+          <option value="60" selected>30–90 min</option>
+          <option value="150">1,5–3 h</option>
+          <option value="240">più di 3 h</option>
+        </select>
+        <span class="hint">Un vuoto vale in proporzione a quanto hai girato.</span>
+      </label>
+
+      <button type="submit" class="primary">Salva</button>
+    </form>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{{ asset('log.js') }}"></script>
+</body></html>

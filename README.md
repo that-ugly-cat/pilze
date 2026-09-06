@@ -30,11 +30,11 @@ gis/          layer + pipeline:
                 grid.py · make_map.py                                    mappa statica (200 m)
                 meteo.py · fetch_meteo.py · predict_today.py             asse dinamico + top_spots
                 replay.py                                                falsificazione dell'asse dinamico
-bot/          bot Telegram di cattura + SQLite (§6.1) — 🍄 Trovato · 🚫 Vuoto · 🎯 Mirato,
-                giorno dell'uscita, fasi/fasce a bottoni, "altra specie stesso posto"
+bot/          persistenza osservazioni (SQLite, §6.1). Nome storico: la cattura era un
+                bot Telegram, ora è il form della web app
 webapp/       web app FastAPI + Leaflet: auth · admin (utenti · editor profili + rigenerazione ·
                 doc) · mappa (idoneità statica/dinamica/ritrovamenti · trova-spot · mobile)
-tests/        23 test (motore + provider + gate)
+tests/        27 test (motore · provider · gate · AOI · persistenza osservazioni)
 Dockerfile · docker-compose.yml · DEPLOY.md
 ```
 
@@ -57,14 +57,15 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   (quadrati per fase), **ritrovamenti**, **confini area dati** (BZ+TN+VE, spiega dove si ferma
   l'idoneità), e **"trova spot migliori"** (top-50 per specie: statica /
   dinamica / prodotto, secondo i layer attivi). Editor profili online + rigenerazione mappe
-  on-demand, pagina Doc, mobile (tooltip al tap). **Cattura:** bot Telegram (ritrovamenti/zeri/foto).
-  **Deploy:** Docker (web+bot+poller) → borant.
+  on-demand, pagina Doc, mobile (tooltip al tap). **Cattura:** form `/log` — pin su mappa
+  o GPS del telefono, ritrovamenti/vuoti/foto. **Deploy:** Docker (web+poller) → borant.
 - **Da fare:** **taratura host/gate** — dentro l'AOI il 25–47% dei punti GBIF di presenza
   scora esattamente 0 (host noto e incompatibile, oppure `forest_fraction` = 0 su un punto
   con coordinate imprecise). Prima di dare la colpa ai pesi, separare le due cause e valutare
   se in validazione il punto vada scorato col massimo di un intorno (~500 m, l'ordine di
-  grandezza dell'incertezza GBIF) invece che sul pixel esatto. Poi: notifiche via bot (trigger
-  readiness); learner (v4); **CORINE Land Cover** (sottotipi di prato/pascolo) + cablaggio hook
+  grandezza dell'incertezza GBIF) invece che sul pixel esatto. Poi: **notifiche** al trigger di readiness — era il
+  canale di consegna dell'active learning e con l'uscita del bot resta scoperto: servirà
+  un mittente Telegram in sola uscita, oppure web push; learner (v4); **CORINE Land Cover** (sottotipi di prato/pascolo) + cablaggio hook
   `extra_static_layers`; saprotrofi del legno (chiodini, canopy invertito); profili di specie di
   prato; **cache dei punti GBIF** (`data/gbif_occurrences.geojson` non viene mai scritta, quindi
   ogni `validate` riscarica e i confronti fra run non sono a parità di dati).
@@ -79,7 +80,7 @@ python -m gis.validate                 # Boyce vs GBIF (dentro l'AOI; --no-aoi p
 python -m gis.replay boletus_edulis    # replay dell'archivio: quante volte sarebbe stato "pronto", e chi veta
 python -m gis.replay --cell m2200_..   # timeline giorno per giorno di una cella sola
 pytest                                 # test
-# web app: uvicorn webapp.app:app   ·   bot: python -m bot.bot
+# web app (cattura inclusa, /log): uvicorn webapp.app:app
 ```
 I **layer grezzi** (DEM/forestale/geologia/WorldCover/canopy, ~1.7 GB) sono gitignorati e servono
 solo a *generare* le mappe (`make_map`, ora eseguibile anche sul VPS via il bottone Rigenera).
@@ -169,7 +170,14 @@ tocca solo il default versionato, la produzione resta com'è finché non la si i
 
 ## La cattura, e perché è fatta così
 
-Tre entrate dalla tastiera persistente: **🍄 Trovato**, **🚫 Vuoto**, **🎯 Mirato**. La
+Si logga dal **form della web app** (`/log`). Prima era un bot Telegram: il form vince
+sul caso che conta davvero — la sera, a casa, quando il posto lo ricordi ma non ci sei
+più — perché un pin trascinabile su mappa topografica è più preciso di una posizione
+condivisa a memoria, e perché chi logga non ha bisogno di un account Telegram. Si perde
+la coda offline di Telegram: senza campo non si salva, e si scrive al rientro. Per questo
+il **giorno** è un campo e non l'ora di invio.
+
+Tre tipi di uscita: **🍄 Trovato**, **🚫 Vuoto**, **🎯 Mirato a vuoto**. La
 distinzione fra vuoto generico e vuoto mirato non è cosmetica: è la semantica degli zeri
 del §6.1, dove un vuoto conta come negativo solo per le specie che lì potevano esserci, e
 un vuoto mirato sul proprio posto buono è uno zero forte sul *timing*. Collassarla in
@@ -180,13 +188,11 @@ Quattro scelte che vale la pena non disfare:
 - **Si chiede il giorno dell'uscita** (`obs_date`), separato da `ts_submit`. Il learner
   legge lo stato del meteo a quella data, e la finestra del lag è di dieci giorni:
   loggare la sera dopo sposterebbe `days_since_trigger` di un decimo della finestra.
-  Un tap per oggi/ieri/l'altro ieri, testo libero per il resto.
-- **Niente numeri da digitare.** In montagna la digitazione è dove il flusso muore.
-  Abbondanza e ricerca sono fasce a bottoni, con gli estremi scritti: «16+» lo leggono
-  tutti uguale, «molti» no. Il peso resta scrivibile ma con un «salta» a un tocco.
+- **Fasce con gli estremi scritti**, non aggettivi: «16+» lo leggono tutti uguale,
+  «molti» no. Vale per l'abbondanza e per il tempo di ricerca.
 - **`effort_min` anche sui vuoti.** Un vuoto informa in proporzione a quanto hai cercato:
   dieci minuti e tre ore non sono lo stesso zero, e pesarli uguale diluisce i vuoti veri.
-- **«Altra specie, stesso posto»** dopo il salvataggio, che riusa pin e giorno: in
+- **«Altra specie, stesso punto»** dopo il salvataggio, che riusa pin e giorno: in
   un'uscita trovi porcini e finferli, e le etichette raddoppiano a costo quasi nullo.
 
 E un buco chiuso lato pipeline: il poller archiviava il meteo **solo** per le celle che il
