@@ -317,8 +317,9 @@ async function loadPins() {
       if (p.abundance) html += `<br>${p.abundance}`;
       if (p.effort_min) html += `<br>ricerca: ~${p.effort_min} min`;
       html += `<br><small>${p.ts || ''}</small>`;
-      if (p.photo) html += `<br><a href="/photo/${p.id}" target="_blank" rel="noopener">`
-        + `<img class="obs-photo" src="/photo/${p.id}" alt="foto del ritrovamento"></a>`;
+      if (p.photo) html += `<a href="/photo/${p.id}" target="_blank" rel="noopener" `
+        + `title="apri la foto"><img class="obs-photo" src="/photo/${p.id}" `
+        + `alt="foto del ritrovamento"></a>`;
       return m.bindPopup(html);
     }
   }).addTo(map);

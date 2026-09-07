@@ -179,4 +179,8 @@ label.near { margin: 2px 0 4px !important; font-size: 14px; }
 /* Pin di un'altra specie: restano, ma non competono con quelli che stai cercando.
    Dopo .obs-pin.blank, così vince su entrambi (stessa specificità, ordine). */
 .obs-pin.dim { opacity: .3; }
-.obs-photo { max-width: 220px; margin-top: 5px; border-radius: 5px; display: block; }
+/* Miniatura QUADRATA a lato fisso: con max-width una foto verticale faceva un popup
+   alto mezzo schermo. object-fit ritaglia invece di deformare, e il link apre l'originale. */
+.obs-photo { width: 84px; height: 84px; object-fit: cover; display: block;
+  margin-top: 6px; border-radius: 6px; border: 1px solid #ccd; cursor: zoom-in; }
+.obs-photo:hover { border-color: #2f6f4f; }
