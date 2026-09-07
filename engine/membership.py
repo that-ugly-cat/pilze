@@ -47,10 +47,17 @@ def envelope_membership(x: float | None, env: dict, default_margin: float) -> fl
 
 # Match categoriale morbido: 1 preferito, intermedio se tollerato, ~0 avverso.
 # tabelle {preferenza_profilo: {valore_cella: membership}}
+
+# L'esposizione punisce meno di prima (era 0.1 sul versante sbagliato, cioè un fattore
+# dieci). Il prior è debole — «fresco» è una tendenza, non una legge: i funghi crescono
+# su entrambi i versanti — e i primi cinque ritrovamenti di campo lo contraddicono, con
+# quattro su cinque su versante caldo contro un tasso di base del 36% nel bosco dell'AOI.
+# Con N=5 non è dimostrato (probabilità ~6%), ma un fattore dieci è una certezza che non
+# abbiamo: 0.35 dice «tendenza», 0.1 diceva «quasi impossibile».
 _ASPECT = {
-    "warm":    {"warm": 1.0, "neutral": 0.5, "cool": 0.1},
-    "cool":    {"cool": 1.0, "neutral": 0.5, "warm": 0.1},
-    "neutral": {"neutral": 1.0, "warm": 0.6, "cool": 0.6},
+    "warm":    {"warm": 1.0, "neutral": 0.7, "cool": 0.35},
+    "cool":    {"cool": 1.0, "neutral": 0.7, "warm": 0.35},
+    "neutral": {"neutral": 1.0, "warm": 0.75, "cool": 0.75},
 }
 _SOIL_PH = {
     "acidic":     {"acidic": 1.0, "neutral": 0.6, "calcareous": 0.15},

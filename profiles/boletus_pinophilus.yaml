@@ -29,10 +29,21 @@ species:
   extra_static_layers: []
   phenology_months: [4, 5, 6, 9, 10]   # primavera + autunno (multi-finestra); montano fresco anche estate
 
-  dynamic_triggers:      # PROVVISORI — da tarare
-    rain_window_days: 12
-    cumulative_rain_mm: 40
-    thermal_shock_c: 6                  # sensibile allo shock (grandinate)
-    soil_temp_c: { min: 7, max: 16 }
-    lag_days: { opt: [12, 20] }
-    moisture_floor: 0.22
+  # Tarati il 7 set 2026 sul ritrovamento di Angela (6 set, Cima d'Asta, «buono/pochi»)
+  # e sulle distribuzioni osservate. Coi valori vecchi quella cella dava readiness 0.0,
+  # vetata da tre soglie insieme.
+  dynamic_triggers:
+    # 25 e non 12: con la finestra corta l'innesco (12 giorni prima) restava fuori e la
+    # cella vedeva 12 mm invece di 78. La finestra deve coprire il lag, che arriva a 20.
+    rain_window_days: 25
+    # 75 e non 40: sulla finestra nuova il ritrovamento sta a 78 mm. È più permissivo del
+    # p72 di prima — è il dato di campo a imporlo, non un'analogia.
+    cumulative_rain_mm: 75
+    # i 6 °C stavano al percentile 100: mai raggiunti in tutta la stagione osservata
+    # (p95 = 2.9). Era un veto permanente travestito da soglia.
+    thermal_shock_c: 1.5
+    soil_temp_c: { min: 7, max: 16 }     # non toccato: 15.9 °C al ritrovamento, in banda
+    lag_days: { opt: [12, 20] }          # non toccato: dst = 12 al ritrovamento
+    # 0.12 come per l'edulis: al ritrovamento l'umidità era 0.148, quindi 0.22 è
+    # falsificato. Da discriminante a rete anti-siccità.
+    moisture_floor: 0.12
