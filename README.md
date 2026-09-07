@@ -2,8 +2,9 @@
 
 Sistema per **mappare le aree produttive** per specie di funghi, **prevedere le buttate**
 (idoneità statica dell'habitat × condizioni meteo dinamiche) e **migliorare nel tempo**
-tramite i ritrovamenti sul campo. Ambito: Veneto + Trentino. 6 profili di bosco
-(micorriziche); il motore supporta anche i **saprotrofi di prato** (gate habitat).
+tramite i ritrovamenti sul campo. Ambito: **Bolzano + Trento + Veneto**, cioè dove
+arrivano i layer tematici. 6 profili di bosco versionati (più quelli creati online); il
+motore supporta anche i **saprotrofi di prato** (gate habitat).
 
 **Come funziona, e da dove vengono i dati: [docs/COME-FUNZIONA.md](docs/COME-FUNZIONA.md).**
 Spec completa: `../ono-wiki/raw/strumenti/mappa-funghi-spec.md`. Deploy: `DEPLOY.md`.
@@ -37,7 +38,7 @@ bot/          persistenza osservazioni (SQLite, §6.1). Nome storico: la cattura
 webapp/       web app FastAPI + Leaflet: auth · admin (utenti · editor profili + rigenerazione ·
                 doc) · mappa (idoneità statica/dinamica/ritrovamenti · trova-spot · mobile) ·
                 /log (cattura) · /me (scheda: casa, password, storico modificabile)
-tests/        27 test (motore · provider · gate · AOI · persistenza osservazioni)
+tests/        33 test (motore · provider · gate · AOI · intorno · account · osservazioni)
 Dockerfile · docker-compose.yml · DEPLOY.md
 ```
 

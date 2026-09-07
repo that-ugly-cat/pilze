@@ -52,6 +52,20 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
 - [x] **Prima verità di campo** + ritaratura di `boletus_edulis` (README).
 - [ ] Tarare gli altri profili con lo stesso metodo; il replay c'è, i dati di campo no.
 
+## Taratura e metrologia (6-7 set 2026) — vedi README e COME-FUNZIONA
+- [x] Prime **cinque osservazioni di campo** (Spit e Angela) → tarati porcino, finferlo,
+      porcino rosso e ovolo; esposizione ammorbidita nel motore (0.1 → 0.35), confermata
+      dal Boyce su GBIF su 5 specie su 6.
+- [x] **Coerenza finestra/lag nel validatore dei profili**: `rain_window_days` deve
+      superare `lag_days.opt` max, altrimenti l'innesco esce dalla finestra proprio quando
+      la specie sarebbe pronta. Ha trovato quattro profili sbagliati.
+- [x] **Intorno di 250 m in validazione** (default): un punto GBIF non ha la precisione di
+      una cella da 200 m. Due specie cambiano segno.
+- [ ] **La carica va valutata alla data dell'innesco**, non a oggi: oggi carica e lag
+      guardano tempi diversi e si escludono, ed è il difetto strutturale dell'asse
+      dinamico. Non è un parametro, è la forma della domanda.
+- [ ] Background forestato + CV a blocchi spaziali (§6.3): resta il limite noto del Boyce.
+
 ## v4 — apprendimento
 - [ ] **Learner statico**: presenza+zeri → pesi statici, update **grossolano** (sposta il profilo,
       non i singoli fattori — credit assignment impossibile con poche decine di punti). Online/bayesiano.
