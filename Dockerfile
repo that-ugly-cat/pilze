@@ -17,7 +17,9 @@ COPY bot ./bot
 COPY webapp ./webapp
 COPY config ./config
 COPY profiles ./profiles
-COPY docs ./docs          # la pagina Doc rende COME-FUNZIONA.md a runtime
+# La pagina Doc rende COME-FUNZIONA.md a runtime: il markdown serve nell'immagine.
+# (NB: niente commenti in coda a un COPY: Docker li legge come sorgenti da copiare.)
+COPY docs ./docs
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
