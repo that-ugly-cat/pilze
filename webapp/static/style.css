@@ -137,3 +137,17 @@ body.nav-collapsed #panel-edge::before { content: "›"; }
 .foot .pill { padding: 5px 11px; border-radius: 999px; background: #e6ebe2;
   border: 1px solid #d0d8c8; color: #2f6f4f; font-size: 12px; text-decoration: none; }
 .foot .pill:hover { background: #dbe3d5; text-decoration: none; }
+
+/* --- "vicino a me" + toast ------------------------------------------------ */
+label.near { margin: 2px 0 4px !important; font-size: 14px; }
+#near-ctl { margin: 0 0 8px 20px; padding-left: 8px; border-left: 2px solid #cfe6d8; }
+#near-ctl input[type=range] { width: 100%; margin-top: 2px; accent-color: #2f6f4f; }
+#near-ctl .slabel span { color: #2f6f4f; }
+
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 14px);
+  z-index: 2000; max-width: min(420px, 88vw); padding: 11px 16px; border-radius: 10px;
+  background: #223; color: #fff; font-size: 13.5px; line-height: 1.4;
+  box-shadow: 0 6px 24px rgba(0,0,0,.3); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease; }
+#toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#toast a { color: #9fe3bd; }

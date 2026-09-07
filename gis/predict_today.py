@@ -72,9 +72,17 @@ def predict(species: str, static_thr: float = 0.4):
     return counts
 
 
-def top_spots(species: str, mode: str = "both", k: int = 50, static_thr: float = 0.4):
+def top_spots(species: str, mode: str = "both", k: int = 50, static_thr: float = 0.4,
+              home: tuple[float, float] | None = None, max_km: float | None = None):
     """Top-k spot per una specie. mode: 'static' (idoneità), 'dynamic' (readiness della
-    cella meteo), 'both' (prodotto). Ritorna [{lat, lon, idoneita, readiness, score}] ordinati."""
+    cella meteo), 'both' (prodotto). Ritorna [{lat, lon, idoneita, readiness, score}] ordinati.
+
+    Con `home` (lat, lon) e `max_km` la ricerca si restringe a quel raggio e ogni spot
+    porta la sua distanza. Il filtro si applica PRIMA della classifica, non dopo: cercare
+    i migliori del Veneto e poi tenere quelli vicini darebbe spesso una lista vuota.
+    La distanza è euclidea nella griglia metrica (UTM 32N) — sotto i 100 km e dentro il
+    fuso l'errore è di qualche decina di metri, irrilevante per «a che distanza sta».
+    """
     import heapq
     prof = load_profiles()[species]
     tif = MAPS_DIR / f"idoneita_{species}.tif"
@@ -86,6 +94,12 @@ def top_spots(species: str, mode: str = "both", k: int = 50, static_thr: float =
     same = str(crs).upper().endswith(cfg["crs"].split(":")[-1])
     to_grid = None if same else Transformer.from_crs(crs, cfg["crs"], always_xy=True)
     to_wgs = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+
+    hx = hy = None
+    if home is not None:
+        to_utm = Transformer.from_crs("EPSG:4326", cfg["crs"], always_xy=True)
+        hx, hy = to_utm.transform(home[1], home[0])
+    max_m = None if max_km is None else float(max_km) * 1000.0
 
     need_dyn = mode in ("dynamic", "both")
     conn = meteo.connect() if need_dyn else None
@@ -105,22 +119,27 @@ def top_spots(species: str, mode: str = "both", k: int = 50, static_thr: float =
         ido = float(a[r, c])
         x = tr.c + (c + 0.5) * tr.a; y = tr.f + (r + 0.5) * tr.e
         gx, gy = to_grid.transform(x, y) if to_grid else (x, y)   # metri nella griglia
+        if max_m is not None and math.hypot(gx - hx, gy - hy) > max_m:
+            continue
         rd = readiness_at(gx, gy) if need_dyn else 1.0
         score = ido if mode == "static" else (rd if mode == "dynamic" else ido * rd)
         if score <= 0:
             continue
         key = (math.floor(gx / dedup_m), math.floor(gy / dedup_m))
-        item = (score, ido, rd, x, y)
+        item = (score, ido, rd, x, y, gx, gy)
         if key not in best or item > best[key]:
             best[key] = item
     if conn:
         conn.close()
 
     out = []
-    for score, ido, rd, x, y in heapq.nlargest(k, best.values()):
+    for score, ido, rd, x, y, gx, gy in heapq.nlargest(k, best.values()):
         lon, lat = to_wgs.transform(x, y)
-        out.append({"lat": round(lat, 5), "lon": round(lon, 5), "idoneita": round(ido, 3),
-                    "readiness": round(rd, 3), "score": round(score, 3)})
+        spot = {"lat": round(lat, 5), "lon": round(lon, 5), "idoneita": round(ido, 3),
+                "readiness": round(rd, 3), "score": round(score, 3)}
+        if hx is not None:
+            spot["dist_km"] = round(math.hypot(gx - hx, gy - hy) / 1000.0, 1)
+        out.append(spot)
     return out
 
 

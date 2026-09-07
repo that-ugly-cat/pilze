@@ -23,6 +23,22 @@ let pronteLayer = null, pinsLayer = null, topLayer = null, aoiLayer = null;
 
 function setStatus(t) { status.textContent = t; }
 
+// Toast: per le cose che vanno dette adesso e altrove (la riga di stato nel pannello
+// non si vede col pannello chiuso, che a mobile e' quasi sempre).
+let toastTimer = null;
+function toast(msg, ms = 5000) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), ms);
+}
+
 // --- overlay idoneità: griglia fucsia su canvas ---------------------------- //
 // Il server serve i punteggi per cella (griglia in EPSG:3857, come la mappa base,
 // quantizzata a uint8). Il canvas li disegna: colore per punteggio, soglia (cutoff)
@@ -288,6 +304,35 @@ async function loadAoi() {
   ]).addTo(map);
 }
 
+// --- vicino a me: raggio da casa ------------------------------------------ //
+// Il punto di casa sta sull'account, non nel browser: il client manda solo "near=1" e
+// il raggio, il server sa da dove misurare.
+const near = document.getElementById('l-near');
+const nearK = document.getElementById('near-k'), nearKm = document.getElementById('near-km');
+
+function applyNear() {
+  if (near.checked && near.dataset.home !== '1') {
+    near.checked = false;
+    toast('Per cercare vicino a te serve il punto di casa: impostalo nella '
+          + '<a href="/me">tua scheda</a>.');
+    return;
+  }
+  document.getElementById('near-ctl').classList.toggle('off', !near.checked);
+  document.getElementById('find-hint').textContent = near.checked
+    ? `I migliori ${nearK.value} spot entro ${nearKm.value} km da casa.`
+    : 'Top 50 per la specie: statica, dinamica o entrambe secondo i layer attivi.';
+  clearTopSpots();
+}
+near.addEventListener('change', applyNear);
+for (const el of [nearK, nearKm]) {
+  el.addEventListener('input', () => {
+    document.getElementById('near-k-val').textContent = nearK.value;
+    document.getElementById('near-km-val').textContent = nearKm.value + ' km';
+    if (near.checked) document.getElementById('find-hint').textContent =
+      `I migliori ${nearK.value} spot entro ${nearKm.value} km da casa.`;
+  });
+}
+
 // --- trova spot migliori --------------------------------------------------- //
 function clearTopSpots() {
   if (topLayer) { map.removeLayer(topLayer); topLayer = null; }
@@ -299,17 +344,33 @@ async function findTopSpots() {
   const mode = (s && d) ? 'both' : s ? 'static' : d ? 'dynamic' : null;
   if (!mode) { setStatus('attiva idoneità statica o dinamica per cercare gli spot'); return; }
   setStatus('cerco gli spot migliori…');
-  const gj = await (await fetch(`/api/top/${sel.value}?mode=${mode}`)).json();
-  if (!gj.features.length) { setStatus("nessuno spot (dinamica: manca l'archivio meteo?)"); return; }
+  const q = near.checked ? `&near=1&k=${nearK.value}&km=${nearKm.value}` : '';
+  const gj = await (await fetch(`/api/top/${sel.value}?mode=${mode}${q}`)).json();
+  if (gj.error === 'home_missing') {
+    setStatus('');
+    toast('Per cercare vicino a te serve il punto di casa: impostalo nella '
+          + '<a href="/me">tua scheda</a>.');
+    return;
+  }
+  if (!gj.features.length) {
+    setStatus('');
+    toast(near.checked
+      ? `Nessuno spot entro ${nearKm.value} km da casa per questa specie.`
+      : "Nessuno spot (dinamica: manca l'archivio meteo?)");
+    return;
+  }
   topLayer = L.geoJSON(gj, {
     pane: 'topspots',
     pointToLayer: (f, ll) => L.circleMarker(ll, {
       renderer: topRenderer, pane: 'topspots',
       radius: 7, color: '#8a5b00', weight: 2, fillColor: '#ffd400', fillOpacity: 0.95
-    }).bindPopup(`<b>spot</b> · score ${f.properties.score}<br>idoneità ${f.properties.idoneita} · readiness ${f.properties.readiness}`)
+    }).bindPopup(`<b>spot</b> · score ${f.properties.score}`
+      + (f.properties.dist_km != null ? ` · ${f.properties.dist_km} km da casa` : '')
+      + `<br>idoneità ${f.properties.idoneita} · readiness ${f.properties.readiness}`)
   }).addTo(map);
   const label = { static: 'statica', dynamic: 'dinamica', both: 'statica × dinamica' }[mode];
-  setStatus(`top ${gj.features.length} spot (${label})`);
+  setStatus(`${gj.features.length} spot (${label})`
+            + (near.checked ? ` entro ${nearKm.value} km` : ''));
   document.getElementById('find-spots').textContent = '✕ Nascondi spot';
 }
 document.getElementById('find-spots').addEventListener('click', findTopSpots);

@@ -59,7 +59,8 @@ Dockerfile · docker-compose.yml · DEPLOY.md
 - **Interfaccia:** web app — mappa topo con **idoneità statica** (fucsia), **idoneità dinamica**
   (quadrati per fase), **ritrovamenti**, **confini area dati** (BZ+TN+VE, spiega dove si ferma
   l'idoneità), e **"trova spot migliori"** (top-50 per specie: statica /
-  dinamica / prodotto, secondo i layer attivi). Editor profili online + rigenerazione mappe
+  dinamica / prodotto, secondo i layer attivi; con **"vicino a me"** i migliori N entro
+  un raggio dal punto di casa, filtrando *prima* della classifica). Editor profili online + rigenerazione mappe
   on-demand, pagina Doc, mobile (tooltip al tap). **Cattura:** form `/log` — pin su mappa
   o GPS del telefono, ritrovamenti/vuoti/foto. **Deploy:** Docker (web+poller) → borant.
 - **Da fare:** **taratura host/gate** — dentro l'AOI il 25–47% dei punti GBIF di presenza
@@ -203,7 +204,10 @@ Quattro scelte che vale la pena non disfare:
   era un ritrovamento; e se si sposta il pin, i `cell_id` tornano NULL e li riassegna il
   poller, invece di restare legati alla cella sbagliata.
 - **La casa** è sull'utente (`/me`), non una impostazione globale: serve alle distanze
-  («cosa è pronto entro 50 km») e ognuno parte da casa sua.
+  e ognuno parte da casa sua. La usa «vicino a me» nella ricerca degli spot, dove il
+  raggio si applica **prima** della classifica: prendere i migliori della regione e poi
+  tenere quelli vicini darebbe quasi sempre una lista vuota. Il punto di casa non passa
+  mai dal client: sta sull'account, e il browser manda solo il raggio.
 
 E un buco chiuso lato pipeline: il poller archiviava il meteo **solo** per le celle che il
 modello statico giudica già buone (idoneità > 0.4). Un ritrovamento in una cella mediocre

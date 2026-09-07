@@ -103,8 +103,10 @@ def home(request: Request):
     u = _user(request)
     if not u:
         return RedirectResponse("/login", status_code=303)
+    prof = auth.get_user(u["username"]) or {}
     return templates.TemplateResponse(request, "map.html",
-                                      {"user": u, "species": _species_list()})
+                                      {"user": u, "species": _species_list(),
+                                       "home_set": prof.get("home_lat") is not None})
 
 
 # --- log delle uscite ------------------------------------------------------ #
@@ -476,17 +478,32 @@ def pronte(request: Request, species: str):
 
 
 @app.get("/api/top/{species}")
-def top_spots_api(request: Request, species: str, mode: str = "both"):
+def top_spots_api(request: Request, species: str, mode: str = "both",
+                  near: int = 0, k: int = 50, km: float = 50.0):
+    """Migliori spot per una specie. Con `near` la ricerca parte da casa dell'utente e si
+    ferma al raggio: il punto di casa sta sull'account, quindi non lo manda il client."""
     if not _guard(request):
         return Response(status_code=401)
     if mode not in ("static", "dynamic", "both"):
         mode = "both"
     from gis.predict_today import top_spots
+
+    home = max_km = None
+    if near:
+        u = auth.get_user(_user(request)["username"]) or {}
+        if u.get("home_lat") is None or u.get("home_lon") is None:
+            return JSONResponse({"type": "FeatureCollection", "features": [],
+                                 "mode": mode, "error": "home_missing"})
+        home = (u["home_lat"], u["home_lon"])
+        max_km = min(max(float(km), 0.0), 100.0)
+        k = min(max(int(k), 0), 20)
     feats = [{"type": "Feature",
-              "properties": {"score": s["score"], "idoneita": s["idoneita"], "readiness": s["readiness"]},
+              "properties": {kk: s[kk] for kk in ("score", "idoneita", "readiness", "dist_km")
+                             if kk in s},
               "geometry": {"type": "Point", "coordinates": [s["lon"], s["lat"]]}}
-             for s in top_spots(species, mode)]
-    return JSONResponse({"type": "FeatureCollection", "features": feats, "mode": mode})
+             for s in top_spots(species, mode, k=k, home=home, max_km=max_km)]
+    return JSONResponse({"type": "FeatureCollection", "features": feats, "mode": mode,
+                         "near": bool(near)})
 
 
 @app.get("/api/pins")

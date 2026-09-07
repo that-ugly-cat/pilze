@@ -38,6 +38,14 @@
     </fieldset>
     <a class="btnlink" href="/log">✍ Logga un'uscita</a>
     <button id="find-spots" type="button">★ Trova spot migliori</button>
+    <label class="near"><input type="checkbox" id="l-near"
+      data-home="{{ 1 if home_set else 0 }}"> vicino a me</label>
+    <div id="near-ctl" class="off">
+      <label class="slabel">Quanti spot <span id="near-k-val">10</span>
+        <input type="range" id="near-k" min="0" max="20" step="1" value="10"></label>
+      <label class="slabel">Entro <span id="near-km-val">50 km</span>
+        <input type="range" id="near-km" min="0" max="100" step="5" value="50"></label>
+    </div>
     <p class="hint" id="find-hint">Top 50 per la specie: statica, dinamica o entrambe secondo i layer attivi.</p>
     <div id="status"></div>
     <div class="spacer"></div>
