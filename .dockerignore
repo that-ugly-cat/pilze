@@ -8,6 +8,8 @@ __pycache__/
 .pytest_cache/
 tests/
 .env
-docs/
 raw/
 *.md
+# docs/ NON e' escluso: la pagina Doc rende docs/COME-FUNZIONA.md a runtime.
+# `*.md` sopra escluderebbe comunque il file, quindi va ri-ammesso a mano.
+!docs/**
