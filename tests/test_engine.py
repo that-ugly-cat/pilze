@@ -203,3 +203,30 @@ def test_combiner_e_prodotto():
                   "soil_temp_c": 17, "thermal_shock_c": 6, "days_since_trigger": 14}
     # habitat perfetto ma readiness 0 (secco) → predizione 0 (spec §1)
     assert predict(aereus, cell, feat_secco) == 0.0
+
+
+def test_host_floor_su_specie_senza_gate_host_e_segnalato():
+    """Un campo che non fa niente deve dirlo: il gate host esiste solo per le micorriziche."""
+    from engine.profiles import _from_dict
+    sap = _from_dict({"species": {"id": "t", "common_name": "t", "habitat": "grassland",
+                                  "trophic_mode": "saprotrophic", "host_floor": 0.5}})
+    assert any("host_floor" in e and "non farebbe niente" in e for e in sap.validate())
+    # senza il campo, nessun rumore
+    muto = _from_dict({"species": {"id": "t", "common_name": "t", "habitat": "grassland",
+                                   "trophic_mode": "saprotrophic"}})
+    assert muto.validate() == []
+
+
+def test_numero_scritto_male_non_viene_ingoiato():
+    """`host_floor: 0,12` da tastiera italiana diventava 0.0 in silenzio."""
+    from engine.profiles import _from_dict
+    p = _from_dict({"species": {"id": "t", "common_name": "t", "trophic_mode": "mycorrhizal",
+                                "host_genera": {"faggeta": 1.0}, "host_floor": "0,12"}})
+    assert p.host_floor == 0.0                      # fail-soft: l'app si avvia lo stesso
+    errs = p.validate()
+    assert any("non e' un numero" in e for e in errs)
+    assert any("separatore decimale" in e for e in errs)
+    # la stringa scritta bene invece passa (YAML puo' quotare un numero)
+    ok = _from_dict({"species": {"id": "t", "common_name": "t", "trophic_mode": "mycorrhizal",
+                                 "host_genera": {"faggeta": 1.0}, "host_floor": "0.12"}})
+    assert ok.host_floor == 0.12 and ok.validate() == []

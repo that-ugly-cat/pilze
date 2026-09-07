@@ -70,6 +70,10 @@ class SpeciesProfile:
     extra_static_layers: list[str] = field(default_factory=list)
     phenology_months: list[int] = field(default_factory=list)
     dynamic_triggers: dict = field(default_factory=dict)
+    # Problemi trovati mentre si leggeva lo YAML (es. un numero scritto male). Il parsing
+    # resta fail-soft — l'app deve avviarsi anche con un profilo storto — ma non silenzioso:
+    # validate() li rialza, quindi l'editor li mostra e il salvataggio si ferma.
+    parse_warnings: list[str] = field(default_factory=list)
 
     @property
     def is_mycorrhizal(self) -> bool:
@@ -103,6 +107,11 @@ class SpeciesProfile:
                 errs.append(f"{self.id}: mese fenologia {m} fuori range")
         if self.is_mycorrhizal and not self.host_genera:
             errs.append(f"{self.id}: micorrizico senza host_genera")
+        errs.extend(f"{self.id}: {w}" for w in self.parse_warnings)
+        if self.host_floor and not self.is_mycorrhizal:
+            errs.append(f"{self.id}: host_floor {self.host_floor} su una specie "
+                        f"'{self.trophic_mode}': il gate host non si applica e il campo non "
+                        f"farebbe niente")
         if not 0.0 <= self.host_floor < 1.0:
             errs.append(f"{self.id}: host_floor {self.host_floor} fuori da [0,1)")
         if self.host_floor and self.host_floor >= min(self.host_genera.values(), default=1.0):
@@ -123,16 +132,27 @@ class SpeciesProfile:
         return errs
 
 
-def _as_float(v, default: float = 0.0) -> float:
-    """Numero o default: il parsing di un profilo non deve morire su un campo scritto male."""
+def _as_float(v, campo: str, problemi: list[str], default: float = 0.0) -> float:
+    """Numero o default, annotando il problema invece di ingoiarlo.
+
+    Il caso che si vede davvero e' la virgola decimale: `host_floor: 0,12` da tastiera
+    italiana e' una stringa, diventava 0.0 senza un fiato, e il profilo salvava sembrando
+    a posto. Il parsing non deve morire (l'app si avvia anche con un profilo storto), ma
+    deve lasciare una traccia che validate() rialza.
+    """
+    if v is None:
+        return default
     try:
-        return float(v or default)
+        return float(v)
     except (TypeError, ValueError):
+        virgola = " (in YAML il separatore decimale e' il punto)" if isinstance(v, str) and "," in v else ""
+        problemi.append(f"{campo} = {v!r} non e' un numero, uso {default}{virgola}")
         return default
 
 
 def _from_dict(d: dict) -> SpeciesProfile:
     s = d["species"] if "species" in d else d
+    problemi: list[str] = []
     return SpeciesProfile(
         id=s["id"],
         common_name=s.get("common_name", s["id"]),
@@ -140,11 +160,12 @@ def _from_dict(d: dict) -> SpeciesProfile:
         habitat=s.get("habitat", "forest"),
         similar_to=s.get("similar_to", []) or [],
         host_genera=s.get("host_genera", {}) or {},
-        host_floor=_as_float(s.get("host_floor")),
+        host_floor=_as_float(s.get("host_floor"), "host_floor", problemi),
         static_envelope=s.get("static_envelope", {}) or {},
         extra_static_layers=s.get("extra_static_layers", []) or [],
         phenology_months=s.get("phenology_months", []) or [],
         dynamic_triggers=s.get("dynamic_triggers", {}) or {},
+        parse_warnings=problemi,
     )
 
 

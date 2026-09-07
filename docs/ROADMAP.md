@@ -72,8 +72,18 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
 - [x] **`host_floor` per specie** (default 0 = veto secco di sempre): quanto vale l'ospite
       sbagliato. Nasce come costante globale a 0.12 e il Boyce la falsifica in mezz'ora —
       all'ovolo vale +0.25, al porcino ne costa 0.44 — quindi è un campo di profilo.
-- [ ] **Decidere `host_floor` dell'ovolo** (0.12 → +0.688 contro +0.433, ma su 17 punti;
-      l'ipotesi rivale «manca la faggeta nella lista host» dà meno, +0.602 a peso 0.20).
+- [x] **Il valore di `host_floor` NON si sceglie col Boyce**, e la domanda va riformulata.
+      Spingendo il pavimento fino a 0.90 — cioè fino a «l'ospite sbagliato vale quanto
+      quello giusto» — il finferlo migliora fino a +0.869, il porcino rosso ha l'ottimo al
+      bordo estremo, e il porcino (625 punti) fa una U: scende a 0.30 e risale a 0.90.
+      Il meccanismo è che alzare il pavimento sposta massa fuori dal bin zero del
+      background (per l'ovolo dal 19.8% al 5.8% di zeri), e il Boyce misura frequenze
+      lungo quella scala. È la trappola del «disponibile» vista dal lato della
+      distribuzione. Resta valida solo la conclusione qualitativa: un pavimento unico per
+      tutte le specie non regge.
+- [ ] **Un criterio per `host_floor` che non sia il Boyce**: un'osservazione di campo che
+      dica se l'ovolo in faggeta esiste (è la specie con il 47.1% di presenze azzerate
+      dall'host), oppure la verosimiglianza della v4. Fino ad allora resta 0 ovunque.
 - [x] **Gate di copertura a pesi**: `habitat` accetta `{classe: peso}` sulle 10 classi
       WorldCover, non più una classe sola. Serve alle specie di ecotono; la forma a stringa
       resta e vale un peso 1.

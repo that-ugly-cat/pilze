@@ -80,31 +80,59 @@ non è il partner.
 > gestione la classifica faggeta», non «non c'è un abete». Sembrava una proprietà del
 > motore, e il primo tentativo è stato una costante globale a 0.12.
 >
-> Il Boyce l'ha falsificata in mezz'ora (intorno di 250 m, background 4000, stesso operatore):
+> Il Boyce l'ha falsificata in mezz'ora (intorno di 250 m, background 4000, stesso
+> operatore, profili del 7 set sera):
 >
-> | pavimento | 0.00 | 0.05 | 0.08 | 0.12 | 0.20 |
-> |---|---:|---:|---:|---:|---:|
-> | ovolo | +0.433 | +0.509 | +0.582 | **+0.688** | +0.729 |
-> | porcino | **+0.681** | +0.566 | +0.402 | +0.245 | +0.018 |
-> | estatino | +0.672 | +0.657 | +0.647 | +0.636 | +0.596 |
-> | finferlo | +0.377 | +0.380 | +0.382 | +0.390 | +0.495 |
+> | pavimento | 0.00 | 0.12 | 0.30 |
+> |---|---:|---:|---:|
+> | ovolo | +0.433 | +0.688 | +0.756 |
+> | porcino | **+0.782** | +0.460 | +0.251 |
+> | estatino | +0.672 | +0.636 | +0.728 |
+> | finferlo | +0.652 | +0.663 | +0.821 |
 >
-> Un valore unico avrebbe pagato l'ovolo col doppio del porcino. La ragione è che le due
-> specie hanno liste host di larghezza opposta: quella del porcino copre quasi tutto il
-> bosco dell'AOI, quindi le sue celle incompatibili lo sono davvero e alzarle aggiunge solo
-> rumore; quella dell'ovolo esclude per dottrina la faggeta, dove però cadono i suoi punti.
-> Quindi `host_floor` è un campo di profilo con default 0, cioè il veto secco di sempre —
-> «tutto è per singola specie» vale anche qui.
->
-> Per l'ovolo si è provata anche l'ipotesi rivale, cioè che a sbagliare sia la lista e non
-> la forma del gate: mettere la faggeta nel profilo a peso 0.20 dà +0.602, meno del
-> pavimento a 0.12 (+0.688), e peggiora salendo di peso. Con 17 punti non è una sentenza, ma
-> l'ipotesi «il gate è troppo secco» regge meglio dell'ipotesi «manca un ospite».
+> Un valore unico avrebbe pagato l'ovolo col porcino, che va nella direzione opposta. La
+> ragione è che le due specie hanno liste host di larghezza opposta: quella del porcino
+> copre quasi tutto il bosco dell'AOI, quindi le sue celle incompatibili lo sono davvero e
+> alzarle aggiunge solo rumore; quella dell'ovolo esclude per dottrina la faggeta, dove però
+> cadono i suoi punti. Quindi `host_floor` è un campo di profilo con default 0, cioè il veto
+> secco di sempre — «tutto è per singola specie» vale anche qui.
 >
 > Quello che il pavimento **non** fa è resuscitare la chioma morta: il declassamento della
 > canopia moltiplica anche il pavimento, quindi una pecceta schiantata resta zero. E «qui
 > non c'è bosco» resta un veto secco, perché è un'affermazione diversa da «qui il bosco è
 > di un altro tipo».
+
+> **Ma il valore, quel numero non lo sceglie.** La tabella qui sopra dice una cosa
+> qualitativa e binaria — un pavimento unico non regge — e sarebbe una tentazione leggerci
+> anche *quanto* deve valere per ciascuna specie. Non si può, e conviene sapere perché.
+> Spingendo il pavimento fino all'assurdo (0.90 significa «l'ospite sbagliato vale quanto
+> quello giusto», cioè un modello in cui la lista host non conta niente):
+>
+> | specie | n | 0.00 | 0.12 | 0.30 | 0.50 | 0.70 | 0.90 |
+> |---|---:|---:|---:|---:|---:|---:|---:|
+> | finferlo | 428 | +0.652 | +0.663 | +0.821 | +0.851 | **+0.869** | +0.765 |
+> | porcino rosso | 70 | +0.171 | +0.171 | +0.216 | +0.326 | +0.448 | **+0.559** |
+> | porcino | 625 | **+0.782** | +0.460 | +0.251 | +0.321 | +0.564 | +0.669 |
+> | ovolo | 18 | +0.433 | +0.688 | +0.756 | **+0.797** | +0.685 | +0.499 |
+>
+> Il finferlo premia un pavimento che quasi cancella il gate host; il porcino rosso ha
+> l'ottimo al bordo estremo dell'intervallo, che è il segno classico di una metrica che
+> guida al posto della biologia. E il porcino, con 625 punti, **scende fino a 0.30 e poi
+> risale**: una U. Una misura sensata del pavimento non può preferire sia 0.00 sia 0.90 a
+> quello che sta in mezzo.
+>
+> Il meccanismo si legge nella distribuzione del fondo. Per l'ovolo, alzare il pavimento da
+> 0 a 0.12 porta gli zeri del background dal **19.8% al 5.8%**: il Boyce confronta due
+> frequenze su finestre mobili lungo la scala di idoneità, quindi cambiare quanti punti
+> stanno esattamente a zero cambia la scala su cui si misura. È la stessa trappola del
+> «disponibile» documentata più sotto, vista da un'altra faccia: lì decideva l'area, qui
+> decide la forma della distribuzione dei punteggi.
+>
+> Conclusione operativa: `host_floor` resta 0 su tutti i profili finché non c'è un criterio
+> che non sia il Boyce — un'osservazione di campo che dica se l'ovolo in faggeta esiste
+> davvero, oppure la verosimiglianza della v4. Non è una lacuna di dati, è una lacuna del
+> metro, e chiuderla a occhio scegliendo il numero più alto della riga sarebbe esattamente
+> il modo di prendere per buono un artefatto.
 
 **Habitat — «è il posto giusto?».** Da WorldCover, che ha copertura completa. Il profilo
 dichiara **quali coperture contano e quanto**: `habitat: forest` è la forma breve di

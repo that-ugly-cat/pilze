@@ -54,8 +54,12 @@
     <p><code>host_floor</code> (opzionale, default <code>0</code>) ammorbidisce quel veto: è quanto
       vale l'ospite <b>sbagliato</b>. Serve dove la lista è stretta per dottrina ma i ritrovamenti
       cadono fuori — la CFI dà una categoria per poligono di gestione, e «faggeta» non vuol dire
-      «non c'è un abete». È per specie e non per il motore, perché misurato col Boyce un pavimento
-      a 0.12 vale <b>+0.25</b> all'ovolo e ne costa <b>0.44</b> al porcino. Restano veti secchi il
+      «non c'è un abete». È per specie e non per il motore, perché un pavimento a 0.12 fa salire
+      l'ovolo (+0.433 → +0.688 di Boyce) e crollare il porcino (+0.782 → +0.460): un valore unico
+      pagherebbe l'uno con l'altro. Il <b>valore</b>, però, il Boyce non sa sceglierlo — spinto
+      fino a 0.90 continua a premiare, cioè premia un modello in cui l'ospite non conta: vedi
+      «Perché il pavimento sta nel profilo» nella prima parte. Per questo il default è
+      <code>0</code> e nessun profilo lo dichiara. Restano veti secchi il
       <b>fuori-bosco</b> e la <b>chioma morta</b> (Vaia/bostrico), che sono affermazioni diverse da
       «qui il bosco è di un altro tipo».</p>
     <p>Le <b>20 classi</b> (tipi forestali CFI):</p>
