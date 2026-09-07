@@ -142,6 +142,45 @@ Se la carica passa, la **fase** viene dal confronto fra `days_since_trigger` e l
 Il lag è, per ammissione della spec, il parametro più incerto del modello. È anche l'unico
 che alla prima verifica di campo ha avuto ragione (vedi il README).
 
+### La carica misura adesso, il lag misura allora
+
+C'è una tensione dentro questa formula, e si vede in un numero che non torna. Rigirando
+l'archivio, l'ovolo produce lo **0.92% di celle-giorno «pronto» contro il 25% di «in
+fieri»**: ventisette giorni di «sta arrivando» per ogni giorno di «è ora».
+
+La spiegazione ovvia sarebbe che la finestra di lag non si raggiunge mai. Misurata, non
+regge: in estate `days_since_trigger` ha mediana 5, tocca 10 nel 26% dei giorni e cade
+dentro la finestra dell'ovolo [10,16] nel **16%**. Una volta su sei, quindi il posto per
+essere «pronto» ci sarebbe.
+
+Se carica e lag fossero indipendenti, il rapporto atteso sarebbe circa **4.6 a 1**.
+È 27 a 1. I due termini sono correlati negativamente, e la ragione è strutturale:
+
+> La **carica** è calcolata sulle condizioni di **oggi** — pioggia cumulata fino a oggi,
+> umidità e temperatura del suolo di oggi. Il **lag** invece parla di un evento di dieci o
+> venti giorni fa. Ma pioggia cumulata e umidità *decadono* mentre `days_since_trigger`
+> cresce: quando l'orologio del lag arriva finalmente nella finestra, sono passati dieci
+> giorni di asciutto e la carica è collassata. Il modello chiede «sta piovendo adesso **e**
+> l'innesco è di dieci giorni fa», che sono due condizioni che tendono a escludersi.
+
+Il confronto fra specie lo mostra bene: il finferlo, con la finestra che si apre a **tre**
+giorni, ha un rapporto di **1 a 1** — la finestra si apre mentre la carica è ancora alta.
+L'ovolo, che aspetta dieci giorni, arriva sempre tardi rispetto a sé stesso.
+
+**Conseguenza scomoda, e va detta.** Abbassare le soglie migliora i numeri anche per
+questa ragione, non solo perché i priori erano troppo severi: soglie più basse tengono la
+carica sopra 0.5 più a lungo dentro l'asciugatura, e quindi fanno arrivare la cella viva
+fino alla finestra del lag. Le tarature fatte finora restano difendibili — una soglia al
+percentile 100 è indifendibile in ogni caso — ma una parte del miglioramento sta
+compensando un difetto di struttura invece di correggere un prior.
+
+**La forma giusta della domanda** sarebbe: *le condizioni erano buone al momento
+dell'innesco, e da allora sono passati dieci-venti giorni?* Cioè valutare la carica **alla
+data del trigger** e non a oggi, tenendo semmai un controllo separato che nel frattempo non
+sia arrivata una siccità capace di abortire la buttata — che è esattamente ciò che il campo
+`old_reason: abortito` serve a registrare. È una modifica a `readiness_state`, non a un
+parametro, e non è ancora fatta.
+
 ---
 
 ## Le fonti dei dati
@@ -448,5 +487,7 @@ Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o n
   del disponibile ma solo l'8.3% delle segnalazioni: chi registra funghi lo fa in montagna.
   Ogni Boyce di una specie di bassa quota va letto sapendolo, e l'estatino ne è il caso
   limite (vedi sopra).
+- **La carica e il lag guardano tempi diversi** (vedi sopra): il primo è la cosa da
+  sistemare nell'asse dinamico, e non è un parametro ma la forma della domanda.
 - **`RAIN_TRIGGER_MM = 10` è una costante di modulo**, non un campo di profilo: la
   definizione stessa di «innesco» non è tarabile per specie, mentre tutto il resto lo è.

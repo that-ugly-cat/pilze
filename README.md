@@ -70,7 +70,9 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   scora esattamente 0 (host noto e incompatibile, oppure `forest_fraction` = 0 su un punto
   con coordinate imprecise). Prima di dare la colpa ai pesi, separare le due cause e valutare
   se sia host o gate — l'intorno in validazione è ora il default e ha già mostrato che
-  buona parte di quegli zeri era imprecisione delle coordinate. Poi: **notifiche** al trigger di readiness — era il
+  buona parte di quegli zeri era imprecisione delle coordinate. **La carica va valutata alla data dell'innesco, non a oggi**: oggi le due cose
+  guardano tempi diversi e si escludono a vicenda (`docs/COME-FUNZIONA.md`), ed è il
+  difetto strutturale dell'asse dinamico. Poi: **notifiche** al trigger di readiness — era il
   canale di consegna dell'active learning e con l'uscita del bot resta scoperto: servirà
   un mittente Telegram in sola uscita, oppure web push; learner (v4); **CORINE Land Cover** (sottotipi di prato/pascolo) + cablaggio hook
   `extra_static_layers`; saprotrofi del legno (chiodini, canopy invertito); profili di specie di

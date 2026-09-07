@@ -36,8 +36,11 @@ species:
   phenology_months: [5, 6, 7, 8, 9]    # il più precoce: da metà maggio, per tutta l'estate
 
   dynamic_triggers:       # PROVVISORI (oltre l'esempio spec) — da tarare
-    rain_window_days: 15
-    cumulative_rain_mm: 35
+    # finestra allargata oltre il lag massimo: con la vecchia, l'innesco usciva
+    # dalla finestra proprio quando la specie sarebbe dovuta essere pronta.
+    # Soglia rialzata allo STESSO percentile: la severita' non cambia.
+    rain_window_days: 20
+    cumulative_rain_mm: 51
     thermal_shock_c: 4
     soil_temp_c: { min: 13, max: 24 }
     lag_days: { opt: [8, 15] }          # precoce / reattivo

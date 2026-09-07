@@ -90,6 +90,18 @@ class SpeciesProfile:
                 errs.append(f"{self.id}: mese fenologia {m} fuori range")
         if self.is_mycorrhizal and not self.host_genera:
             errs.append(f"{self.id}: micorrizico senza host_genera")
+
+        # Coerenza fra finestra di pioggia e lag: la finestra deve contenere la pioggia
+        # che ha innescato la buttata che si sta valutando. Se `rain_window_days` non
+        # supera il lag massimo, una cella valutata a fine finestra vede una pioggia
+        # cumulata da cui l'innesco è già uscito, e la specie risulta secca proprio nei
+        # giorni in cui dovrebbe essere pronta. Serve stretto: la somma prende gli ultimi
+        # `win` giorni, cioè da d-(win-1) a d, quindi un trigger a dst = win resta fuori.
+        win = self.dynamic_triggers.get("rain_window_days")
+        opt = (self.dynamic_triggers.get("lag_days") or {}).get("opt")
+        if win and opt and len(opt) == 2 and win <= float(opt[1]):
+            errs.append(f"{self.id}: rain_window_days ({win}) non supera lag_days.opt max "
+                        f"({opt[1]}) — l'innesco esce dalla finestra proprio quando serve")
         return errs
 
 

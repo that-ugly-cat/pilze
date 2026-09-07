@@ -34,8 +34,11 @@ species:
   phenology_months: [6, 7, 8, 9, 10]   # tipico estate–autunno caldo
 
   dynamic_triggers:
-    rain_window_days: 15
-    cumulative_rain_mm: 40
+    # finestra allargata oltre il lag massimo: con la vecchia, l'innesco usciva
+    # dalla finestra proprio quando la specie sarebbe dovuta essere pronta.
+    # Soglia rialzata allo STESSO percentile: la severita' non cambia.
+    rain_window_days: 22
+    cumulative_rain_mm: 62
     thermal_shock_c: 5
     soil_temp_c: { min: 12, max: 22 }
     lag_days: { opt: [10, 18] }

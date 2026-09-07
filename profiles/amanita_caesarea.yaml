@@ -32,10 +32,21 @@ species:
   extra_static_layers: []
   phenology_months: [7, 8, 9]          # estate, picco agosto (NON autunnale)
 
-  dynamic_triggers:      # PROVVISORI — da tarare
-    rain_window_days: 12
-    cumulative_rain_mm: 35
-    thermal_shock_c: 4
-    soil_temp_c: { min: 15, max: 26 }  # termofila
-    lag_days: { opt: [10, 16] }
-    moisture_floor: 0.18
+  # Tarati il 7 set 2026 sulle distribuzioni osservate nei mesi dell'ovolo (lug-set).
+  # Nessuna osservazione di campo per questa specie: si correggono solo i due difetti
+  # oggettivi, non si tocca ciò che è già dentro la distribuzione.
+  dynamic_triggers:
+    # 20 e non 12: la finestra deve contenere l'innesco della buttata che si valuta, e il
+    # lag arriva a 16. Con 12 la pioggia d'innesco usciva dalla finestra proprio nei
+    # giorni in cui la specie sarebbe dovuta essere pronta.
+    rain_window_days: 20
+    cumulative_rain_mm: 65      # stesso percentile (~p45) dei vecchi 35 mm su 12 gg
+    # i 4 °C stavano al p90 dello shock osservato ed erano il primo veto (32% delle
+    # celle-giorno bloccate). Per una specie di piena estate un crollo del suolo non è
+    # il meccanismo: la buttata viene dalla pioggia su suolo caldo.
+    thermal_shock_c: 1.5
+    # NON toccati: misurati dentro la distribuzione dei suoi mesi, sono gli unici due
+    # parametri della collezione scritti bene la prima volta.
+    soil_temp_c: { min: 15, max: 26 }    # copre il 77% delle celle-giorno
+    lag_days: { opt: [10, 16] }          # raggiungibile un giorno su sei
+    moisture_floor: 0.18                 # p45 dell'umidità osservata
