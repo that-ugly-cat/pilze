@@ -5,16 +5,20 @@ statiche** che `engine.static_scorer.static_suitability` consuma:
 
 ```python
 cell = {
-    "host": {"querce": 0.6, "castagno": 0.4},  # o "host_class": "querce"
-    "canopy_alive": 0.9,      # 1 - frazione chioma morta (Vaia/bostrico)
+    "host_class": "castagneto",   # una delle 20 categorie CFI (o "host": {classe: frazione})
+    "canopy_alive": 0.9,          # 1 - frazione chioma morta (Vaia/bostrico)
     "elevation_m": 650, "slope_deg": 15,
-    "aspect": "warm", "soil_ph": "acidic", "drainage": "well_drained",
+    "aspect": "warm", "soil_ph": "acidic",
+    "drainage": "well_drained",   # dalla posizione topografica (make_tpi); assente = non misurato
+    "forest_fraction": 0.82, "grassland_fraction": 0.11,   # + le altre 8 classi WorldCover
+    "edge_density": 0.06,         # quota di confine bosco/prato nell'intorno
 }
 ```
 
 > **Stato: layer acquisiti e integrati** (questo doc era il piano originale).
-> I provider reali sono in `providers.py` (DEM · Forest CFI2020 · WorldCover · Geology · Canopy),
-> gli acquisitori in `fetch_*.py`, la mappa in `make_map.py`. Sotto restano le fonti e le note
+> I provider reali sono in `providers.py` (DEM col drenaggio · Forest CFI2020 · WorldCover ·
+> Geology · Canopy), gli acquisitori in `fetch_*.py`, il precalcolo del drenaggio in
+> `make_tpi.py`, la mappa in `make_map.py`. Sotto restano le fonti e le note
 > di merito per riferimento. **Forestale: la fonte primaria è ora la CFI2020 nazionale**
 > (`ForestProvider.cfi()`, campo Ct_CFI, VE+Trento+Bolzano) che sostituisce il patchwork regionale.
 

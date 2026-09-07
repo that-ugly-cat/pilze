@@ -42,7 +42,7 @@ punteggio in [0,1] per ciascuna specie, e la formula è:
 
 ```
 idoneità = gate_AOI × gate_host × gate_habitat × media_geometrica_pesata(quota, pendenza,
-                                                                        esposizione, pH, drenaggio)
+                                       esposizione, pH, drenaggio [, bordo se dichiarato])
 ```
 
 ### I gate, che azzerano
@@ -405,11 +405,15 @@ funghi, per quanto piova. Uno zero in un fattore necessario deve azzerare il pro
 geometrica penalizza lo squilibrio: una cella con quota perfetta e pH pessimo vale meno di
 una mediocre in entrambi, mentre l'aritmetica le pareggerebbe. È anche la media naturale
 per grandezze che si moltiplicano, e in scala logaritmica è semplicemente una media
-pesata. I pesi: quota 1.0, esposizione 0.8, pH 0.8, pendenza 0.5, drenaggio 0.5.
+pesata. I pesi: quota 1.0, esposizione 0.8, pH 0.8, pendenza 0.5, drenaggio 0.5, più il
+bordo 0.8 per le sole specie che lo dichiarano.
 
 **Le appartenenze sono trapezoidali**, non a gradino: una faggeta a 1001 m con `max: 1000`
 non deve crollare a zero. I bordi netti sono quasi sempre un artefatto di come è scritta la
-regola, non un fatto biologico.
+regola, non un fatto biologico. Il rovescio, da sapere quando si scrive un profilo: un
+trapezio **tocca lo zero** al suo bordo inferiore, quindi un fattore graduato con un `min`
+può azzerare una cella come farebbe un gate. Per un fattore debole — il bordo, per esempio
+— si mette un `min` negativo, che è il modo di dire «penalizza, non vietare».
 
 ### Il Continuous Boyce Index
 
@@ -427,17 +431,29 @@ e se il modello è buono P/E cresce in modo monotòno. L'implementazione (`gis/b
 Si legge così: **+1** ordina perfettamente, **0** non fa meglio del caso, **negativo** è
 peggio del caso — le presenze stanno dove il modello dice di no.
 
-Stato al 7 set 2026, dentro l'AOI, **scorando il pixel esatto** — che è il modo severo,
-e la sezione qui sotto spiega perché non è quello giusto:
+Stato al 7 set 2026 a sera, dentro l'AOI, background di 5.000 punti, **col modello che sta
+in produzione** (gate a pesi, drenaggio misurato, le due preferenze di drenaggio corrette).
+`gis/validate.py` stampa entrambe le colonne perché nessuna delle due basta da sola: il
+pixel è il modo severo, l'intorno quello giusto per giudicare il modello, e il divario dice
+quanto il modello sbaglia di **posto**.
 
-| specie | punti GBIF | Boyce |
-|---|---|---|
-| porcino | 379 | +0.462 |
-| finferlo | 119 | +0.238 |
-| porcino rosso | 24 | +0.138 |
-| porcino nero | 4 | +0.091 |
-| ovolo | 17 | +0.014 |
-| estatino | 32 | −0.367 |
+| specie | punti GBIF | pixel | intorno 250 m | divario |
+|---|---:|---:|---:|---:|
+| mazza di tamburo | 367 | +0.944 | **+0.980** | +0.036 |
+| porcino nero | 4 | +0.122 | +0.848 | +0.726 |
+| porcino | 379 | +0.608 | **+0.794** | +0.186 |
+| estatino | 32 | −0.332 | +0.650 | +0.982 |
+| finferlo | 119 | +0.280 | +0.645 | +0.365 |
+| ovolo | 17 | −0.222 | +0.449 | +0.670 |
+| porcino rosso | 24 | +0.262 | +0.164 | −0.098 |
+
+Due letture che il numero da solo non dà. **Il porcino e il finferlo sono saliti per una
+riga di profilo**, non per un layer nuovo: +0.693 → +0.794 e +0.362 → +0.645 correggendo la
+preferenza di drenaggio, che era stata scritta quando il fattore non faceva niente. E **il
+divario della mazza di tamburo è quasi zero** (+0.036) non perché il modello sia preciso, ma
+perché non veta quasi mai: senza gate host i suoi bordi sono morbidi, e un modello che non
+mette confini netti non ha un errore di posto da misurare. Il suo +0.98 va letto insieme al
+fatto che mette il 43% dell'AOI sopra 0.4.
 
 ### Il caso dell'estatino: quando è il metro a non reggere
 
@@ -507,8 +523,9 @@ verificare sui gate, non un dettaglio di misura.
 ### La trappola del Boyce: il «disponibile» decide il risultato
 
 `E` dipende da cosa si considera disponibile, e questo cambia il numero più di quanto lo
-cambi il modello. È successo davvero: a luglio l'edulis dava **+0.71**, oggi dà +0.46, e nel
-frattempo il modello è **migliorato**. Il vecchio numero era misurato senza il ritaglio
+cambi il modello. È successo davvero: a luglio l'edulis dava **+0.71** e in settembre, sullo
+stesso operatore di allora (il pixel), dava +0.46, mentre nel frattempo il modello era
+**migliorato**. Il vecchio numero era misurato senza il ritaglio
 sull'AOI, cioè con presenze fuori dall'area dei dati tematici che prendevano `host = 1.0`
 gratis e finivano in cima alla scala. Non è un peggioramento: è che il metro di prima era
 truccato a favore.

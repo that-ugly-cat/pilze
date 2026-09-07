@@ -55,7 +55,8 @@ species:
   # habitat: forest             # forest (default) | grassland | cropland | built_up | bare ...
   #                             # o a pesi: { grassland: 1.0, forest: 0.7 } per le specie di margine
 
-  # HOST — tipi di bosco in cui fa simbiosi, peso 0-1 (1 = ideale). I non elencati = pavimento 0.12.
+  # HOST — tipi di bosco in cui fa simbiosi, peso 0-1 (1 = ideale). I non elencati = 0,
+  # cioè la cella è vietata; con host_floor: 0.12 valgono quel poco invece di zero.
   # Le 20 classi: pecceta pecceta_secondaria abetina larici_cembreto faggeta mugheta
   #   pineta_silvestre pineta_nera castagneto querceto querceto_rovere querco_carpineto
   #   orno_ostrieto lecceta acero_frassineto frassineto alneto altre_latifoglie
@@ -63,6 +64,7 @@ species:
   host_genera:
     faggeta: 1.0
     castagneto: 0.7
+  # host_floor: 0.12            # quanto vale l'ospite SBAGLIATO (default 0 = veto secco)
 
   # AMBIENTE FISICO — fattori morbidi; ometti quelli che non contano.
   static_envelope:
@@ -70,15 +72,16 @@ species:
     slope_deg: { opt: [5, 30] }        # pendenza in gradi
     aspect: neutral                    # warm (S, assolato) | cool (N, fresco) | neutral
     soil_ph: neutral                   # acidic | neutral | calcareous | tolerant
-    drainage: well_drained             # well_drained | moist
+    drainage: well_drained             # well_drained | moist (dalla posizione topografica)
+    # edge_density: { min: -0.1, opt: [0.08, 1.0] }   # solo per le specie di MARGINE
 
   # QUANDO fruttifica — mesi 1-12 (fuori stagione la readiness è ~0)
   phenology_months: [9, 10]
 
   # SOGLIE METEO (readiness) — priori esperti, il learner li affina nel tempo
   dynamic_triggers:
-    rain_window_days: 15               # giorni su cui sommare la pioggia
-    cumulative_rain_mm: 40             # pioggia soglia sulla finestra (mm)
+    rain_window_days: 22               # giorni su cui sommare la pioggia: DEVE superare lag max
+    cumulative_rain_mm: 55             # pioggia soglia sulla finestra (mm)
     soil_temp_c: { min: 8, max: 18 }   # temperatura del suolo ottimale (°C)
     thermal_shock_c: 4                 # calo di temp. del suolo che innesca (°C)
     lag_days: { opt: [10, 20] }        # giorni dopo il trigger → buttata

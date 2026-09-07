@@ -1,9 +1,9 @@
 """Validazione della mappa di idoneità coi punti GBIF (spec §6.3).
 
 Continuous Boyce Index per specie: presenze GBIF vs background casuale, usando i
-provider di feature disponibili. Oggi = solo DEM (quota/pendenza/esposizione): misura
-quanta discriminazione porta il SOLO terreno, prima di forestale/suolo/disturbo.
-Man mano che si aggiungono provider, lo stesso comando dà un Boyce più alto.
+provider di feature disponibili (AOI, DEM col drenaggio, forestale CFI, gate WorldCover,
+canopy). Man mano che si aggiungono layer, lo stesso comando dà un Boyce diverso — e due
+valori si confrontano solo a parità di background, di layer attivi e di colonna.
 
     python -m gis.validate            # pixel E intorno 250 m affiancati, piu' il divario
     python -m gis.validate --pixel    # solo il pixel esatto (piu' veloce, numeri storici)
@@ -79,17 +79,27 @@ GEOJSON = Path(__file__).resolve().parent.parent / "data" / "gbif_occurrences.ge
 
 
 def load_presence(cfg_bbox: dict) -> dict[str, list[dict]]:
-    """Presenze per specie: dal GeoJSON cache se c'è, altrimenti scarica da GBIF."""
+    """Presenze per specie: dal GeoJSON cache se c'è, altrimenti scarica da GBIF.
+
+    Le specie del registro che la cache non conosce si scaricano e ci si aggiungono: una
+    specie nuova senza questo usciva `n/d` in silenzio, che è il modo peggiore di dirlo —
+    sembra un profilo che non discrimina, ed è invece una cache vecchia.
+    """
+    reg = load_profiles()
+    pts: dict[str, list[dict]] = {}
     if GEOJSON.exists():
         gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
-        pts: dict[str, list[dict]] = {}
         for f in gj["features"]:
             lon, lat = f["geometry"]["coordinates"]
             pts.setdefault(f["properties"]["species"], []).append({"lat": lat, "lon": lon})
-        return pts
-    reg = load_profiles()
-    return {sid: occurrences.fetch_occurrences(occurrences.scientific_name(sid), cfg_bbox)
-            for sid in reg}
+    mancanti = [sid for sid in reg if sid not in pts]
+    for sid in mancanti:
+        print(f"  GBIF: {sid} non è in cache, lo scarico…", flush=True)
+        pts[sid] = occurrences.fetch_occurrences(occurrences.scientific_name(sid), cfg_bbox)
+    if mancanti:
+        GEOJSON.parent.mkdir(parents=True, exist_ok=True)
+        GEOJSON.write_text(json.dumps(occurrences.to_geojson(pts)), encoding="utf-8")
+    return pts
 
 
 def main() -> None:

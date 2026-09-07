@@ -89,9 +89,11 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
 - [x] **`validate` stampa pixel e intorno affiancati, più il divario**: l'intorno prende il
       massimo di un 3×3 ed è quindi cieco ai gate troppo stretti. Il divario è il budget di
       errore spaziale dei gate.
-- [ ] **Ritarare la preferenza `drainage` dei profili** ora che il fattore esiste: era
-      scritta sapendo che non faceva niente, e infatti il Boyce peggiora dove la
-      preferenza dichiarata non regge (finferlo).
+- [x] **Ritarata la preferenza `drainage` dei profili** ora che il fattore esiste: era
+      scritta sapendo che non faceva niente. Corretti finferlo (`moist` → `well_drained`)
+      e porcino (`well_drained` → `moist`); ovolo ed estatino confermati dal dato. Il
+      porcino rosso starebbe meglio senza preferenza (+0.198 contro +0.171) ma con 24
+      punti non si tocca.
 - [ ] **Rigenerare le mappe**: i punteggi assoluti si spostano (sparisce la decurtazione
       costante del drenaggio) e le soglie 0.3/0.4 dell'interfaccia vanno rilette.
 - [ ] **La soglia 0.4 non vuol dire la stessa cosa per tutti.** Su 1500 celle a caso

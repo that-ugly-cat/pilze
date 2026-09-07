@@ -127,7 +127,10 @@
 
     <hr>
     <h2>Esempi</h2>
-    <p class="hint">Micorrizica di <b>bosco</b> (porcino):</p>
+    <p class="hint">Sono i profili <b>veri</b>, non inventati: un test li rilegge da questa pagina e
+      li passa al validatore, così un esempio non può restare indietro rispetto alle regole.</p>
+
+    <p class="hint">Micorrizica di <b>bosco</b> (porcino) — l'ospite fa da gate:</p>
     <pre>species:
   id: boletus_edulis
   common_name: porcino
@@ -137,41 +140,54 @@
     pecceta: 1.0
     faggeta: 0.9
     castagneto: 0.7
+    # larici_cembreto assente: MAI larice
 
   static_envelope:
     elevation_m: { min: 500, opt: [800, 1600], max: 2000 }
     aspect: cool
     slope_deg: { opt: [5, 30] }
     soil_ph: acidic
-    drainage: well_drained
+    drainage: moist       # misurato: sta sul piede del versante, non sul crinale
 
   phenology_months: [8, 9, 10, 11]
 
   dynamic_triggers:
-    rain_window_days: 15
-    cumulative_rain_mm: 45
+    rain_window_days: 25  # deve superare lag max, o l'innesco esce dalla finestra
+    cumulative_rain_mm: 60
     soil_temp_c: { min: 8, max: 18 }
-    thermal_shock_c: 5
+    thermal_shock_c: 2
     lag_days: { opt: [10, 20] }
-    moisture_floor: 0.22</pre>
+    moisture_floor: 0.12</pre>
 
-    <p class="hint">Saprotrofo di <b>prato</b> (coprino) — <code>habitat: grassland</code>, senza <code>host_genera</code>:</p>
+    <p class="hint">Saprotrofo di <b>ecotono</b> (mazza di tamburo) — niente host_genera, gate di
+      copertura a <b>pesi</b> perché vive sul margine fra bosco e prato:</p>
     <pre>species:
-  id: coprinus_comatus
-  common_name: coprino chiomato
+  id: macrolepiota_procera
+  common_name: mazza di tamburo
   trophic_mode: saprotrophic
-  habitat: grassland          # gate = prato (non bosco), niente host_genera
+
+  habitat:                # né bosco né prato: il confine fra i due
+    grassland: 1.0
+    forest: 0.7
+
   static_envelope:
-    elevation_m: { opt: [0, 1200], max: 1600 }
-    drainage: moist
+    elevation_m: { min: 0, opt: [300, 1800], max: 2200 }
+    slope_deg: { opt: [0, 20], max: 35 }
+    aspect: cool
     soil_ph: tolerant
-  phenology_months: [5, 6, 9, 10, 11]
+    drainage: well_drained
+    edge_density: { min: -0.1, opt: [0.08, 1.0] }   # min negativo: a bordo zero
+                                                    # resta una penalità, non un veto
+
+  phenology_months: [7, 8, 9, 10]
+
   dynamic_triggers:
-    rain_window_days: 10
-    cumulative_rain_mm: 25
+    rain_window_days: 18
+    cumulative_rain_mm: 55
     soil_temp_c: { min: 8, max: 22 }
-    lag_days: { opt: [4, 10] }
-    moisture_floor: 0.20</pre>
+    thermal_shock_c: 1.5
+    lag_days: { opt: [6, 14] }
+    moisture_floor: 0.15</pre>
 
     <hr>
     <h2>Dopo aver salvato</h2>

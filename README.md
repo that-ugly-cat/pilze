@@ -3,8 +3,8 @@
 Sistema per **mappare le aree produttive** per specie di funghi, **prevedere le buttate**
 (idoneità statica dell'habitat × condizioni meteo dinamiche) e **migliorare nel tempo**
 tramite i ritrovamenti sul campo. Ambito: **Bolzano + Trento + Veneto**, cioè dove
-arrivano i layer tematici. 6 profili di bosco versionati (più quelli creati online); il
-motore supporta anche i **saprotrofi di prato** (gate habitat).
+arrivano i layer tematici. 7 profili versionati — sei micorriziche di bosco e una
+saprotrofa di **ecotono** — più quelli creati online.
 
 **Come funziona, e da dove vengono i dati: [docs/COME-FUNZIONA.md](docs/COME-FUNZIONA.md).**
 Spec completa: `../ono-wiki/raw/strumenti/mappa-funghi-spec.md`. Deploy: `DEPLOY.md`.
@@ -19,7 +19,7 @@ Tutto è **per singola specie**: aggiungere una specie = aggiungere un profilo Y
 
 ## Struttura
 ```
-profiles/     6 profili di bosco (YAML) — il cuore dichiarativo (§7.1)
+profiles/     7 profili (YAML) — il cuore dichiarativo (§7.1)
 config/       grid.yaml (griglia comune, passo 200 m) · crosswalk.yaml (Ct_CFI → 20 classi host)
 engine/       motore species-agnostic: membership · static_scorer (gate host + habitat) ·
                 dynamic_scorer (readiness + fasi) · combiner · profiles
@@ -47,9 +47,12 @@ Dockerfile · docker-compose.yml · DEPLOY.md
 ## Stato — MVP end-to-end
 - **Statico (DOVE):** mappa idoneità a **200 m** da dati reali — DEM (Copernicus) + forestale
   **CFI2020** (VE+Trento+Bolzano) + **WorldCover** (gate copertura) + geologia CARG (soil_ph) +
-  canopy Sentinel-2 (disturbo Vaia/bostrico). Host = **20 classi = i tipi forestali CFI**
-  (pecceta, faggeta, mugheta…), non 8 generi. Gate **habitat** per-specie: bosco
-  (`forest_fraction`) o prato (`grassland_fraction`) → supporta anche i saprotrofi di prato.
+  canopy Sentinel-2 (disturbo Vaia/bostrico) + **drenaggio** dalla posizione topografica
+  (`make_tpi`, dal DEM stesso). Host = **20 classi = i tipi forestali CFI**
+  (pecceta, faggeta, mugheta…), non 8 generi, con `host_floor` per specie a decidere quanto
+  vale l'ospite sbagliato. Gate **habitat** a pesi sulle 10 classi WorldCover — una classe
+  sola, o una combinazione per le specie di ecotono — più `edge_density` (quota di confine
+  bosco/prato) come fattore opt-in.
   Ritagliata sull'**AOI** (BZ+TN+VE): fuori i layer tematici non arrivano.
   Validazione (Boyce vs GBIF, set di set 2026, dentro l'AOI, **intorno 250 m**): edulis
   +0.69, cibarius +0.60, aestivalis +0.53, caesarea +0.31, pinophilus +0.21 (aereus +0.91
@@ -79,8 +82,7 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   canale di consegna dell'active learning e con l'uscita del bot resta scoperto: servirà
   un mittente Telegram in sola uscita, oppure web push; learner (v4); **CORINE Land Cover** (sottotipi di prato/pascolo) + cablaggio hook
   `extra_static_layers`; saprotrofi del legno (chiodini, canopy invertito); profili di specie di
-  prato; **cache dei punti GBIF** (`data/gbif_occurrences.geojson` non viene mai scritta, quindi
-  ogni `validate` riscarica e i confronti fra run non sono a parità di dati).
+  prato.
 
 ## Uso
 ```bash
