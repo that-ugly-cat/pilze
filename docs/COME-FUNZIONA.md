@@ -297,7 +297,8 @@ e se il modello è buono P/E cresce in modo monotòno. L'implementazione (`gis/b
 Si legge così: **+1** ordina perfettamente, **0** non fa meglio del caso, **negativo** è
 peggio del caso — le presenze stanno dove il modello dice di no.
 
-Stato al 7 set 2026, dentro l'AOI:
+Stato al 7 set 2026, dentro l'AOI, **scorando il pixel esatto** — che è il modo severo,
+e la sezione qui sotto spiega perché non è quello giusto:
 
 | specie | punti GBIF | Boyce |
 |---|---|---|
@@ -310,8 +311,8 @@ Stato al 7 set 2026, dentro l'AOI:
 
 ### Il caso dell'estatino: quando è il metro a non reggere
 
-L'estatino è a −0.367, e la lettura ovvia — «il modello lo manda dove non è» — non regge
-all'esame. Il punteggio medio alle presenze (0.195) è *più alto* di quello del background
+L'estatino è a −0.367 sul pixel esatto (**+0.564 sull'intorno di 250 m**), e la lettura
+ovvia — «il modello lo manda dove non è» — non regge all'esame. Il punteggio medio alle presenze (0.195) è *più alto* di quello del background
 (0.077): il modello non è anti-predittivo, è **non monotòno**, e il Boyce misura la
 monotonia. Le presenze si affollano a metà scala, mentre il vertice resta vuoto.
 
@@ -336,6 +337,34 @@ quel −0.367 non va letto come un giudizio sul profilo. Rifare i parametri per 
 quel numero significherebbe insegnare al modello a trovare porcini e chiamarli estatini.
 Serve un'osservazione di campo: un solo estatino loggato, con la sua data e il suo bosco,
 vale più di trentadue segnalazioni di provenienza ignota.
+
+### La seconda trappola: un punto GBIF non è un pixel
+
+Le celle sono da 200 m; una segnalazione GBIF ha coordinate che spesso valgono qualche
+centinaio di metri, quando non è il centro del paese o l'inizio del sentiero. Scorare il
+**pixel esatto** significa allora chiedere al modello di indovinare un posto dove il fungo
+non era.
+
+Si vede nei numeri: dal 25% al 47% delle presenze prende esattamente zero, a seconda della
+specie. Rifacendo la misura sul **massimo di un intorno di 250 m** — l'ordine di grandezza
+dell'incertezza — gli zeri quasi spariscono e il Boyce cambia di segno per due specie.
+L'operatore va applicato anche al background, altrimenti si gonfia soltanto il numeratore:
+
+| specie | zeri sul pixel | zeri sull'intorno | Boyce sul pixel | Boyce sull'intorno |
+|---|---|---|---|---|
+| porcino | 28% | 8% | +0.377 | **+0.572** |
+| finferlo | 6% | 2% | +0.209 | **+0.668** |
+| estatino | 25% | 6% | −0.373 | **+0.564** |
+| ovolo | 47% | 12% | −0.001 | **+0.362** |
+| porcino rosso | 4% | 0% | +0.146 | +0.202 |
+
+Applicando l'intorno alle sole presenze si arriva a +0.78/+0.95, ed è il modo sbagliato di
+farlo: quel numero non misura il modello, misura l'operatore.
+
+La lettura giusta è che **il modello discrimina meglio di quanto il pixel-per-pixel
+lasciasse credere**, e che l'estatino e l'ovolo non erano rotti: erano misurati con un
+metro più fine della precisione del dato. La validazione dovrebbe adottare l'intorno come
+default — è già fra le cose da fare, ora con dei numeri dietro.
 
 ### La trappola del Boyce: il «disponibile» decide il risultato
 
