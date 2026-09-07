@@ -17,6 +17,7 @@ COPY bot ./bot
 COPY webapp ./webapp
 COPY config ./config
 COPY profiles ./profiles
+COPY docs ./docs          # la pagina Doc rende COME-FUNZIONA.md a runtime
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000

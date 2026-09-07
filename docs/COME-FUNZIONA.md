@@ -1,8 +1,13 @@
 # Come funziona Pilze
 
 Spiegone dei due assi del modello e delle fonti da cui vengono i dati. È il documento da
-leggere prima di toccare un profilo o discutere un numero. Per i campi YAML c'è la pagina
-**Doc** nell'admin; per il piano di lavoro c'è `ROADMAP.md`; qui c'è il *perché*.
+leggere prima di toccare un profilo o discutere un numero: qui c'è il *perché*, il
+riferimento campo per campo dei profili sta subito dopo, e il piano di lavoro in
+`ROADMAP.md`.
+
+Si legge da due parti, ed è lo stesso file: su GitHub come markdown, e nell'app alla
+pagina **Doc**, che lo rende a runtime. Due copie divergerebbero, e la copia sbagliata
+sarebbe sempre quella che qualcuno sta leggendo.
 
 Tutti i numeri di questa pagina sono verificati sui dati che stanno in `data/`, non ripresi
 dalla documentazione delle fonti.

@@ -1,46 +1,29 @@
 <!doctype html>
 <html lang="it"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pilze — doc profili</title>
+<title>Pilze — documentazione</title>
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head><body class="admin">
   {% include "_topbar.html" %}
   <div class="card wide doc">
-    <h1>Come si compila un profilo specie</h1>
+    <h1>Documentazione</h1>
+    <p class="hint">Come funziona il modello, da dove vengono i dati, e come si compila un
+      profilo specie. La prima parte è lo stesso documento che sta nel repo in
+      <code>docs/COME-FUNZIONA.md</code>: reso qui, non ricopiato.</p>
+
+    <nav class="doc-toc">
+      {{ toc|safe }}
+      <ul><li><a href="#profili">Come si compila un profilo specie</a></li></ul>
+    </nav>
+
+    {{ explainer|safe }}
+
+    <hr>
+    <h1 id="profili">Come si compila un profilo specie</h1>
     <p class="hint">Ogni file <code>profiles/&lt;id&gt;.yaml</code> descrive una specie. Il motore è
       <b>species-agnostic</b>: cambia solo il profilo. Tutti i valori sono <b>priori esperti</b> — il
-      punto di partenza, non verità assolute.</p>
-
-    <h2>Come tutto si combina</h2>
-    <p>La predizione di una cella per una specie è:</p>
-    <p><code>predizione = idoneità_statica × readiness_dinamica</code></p>
-    <ul>
-      <li><b>idoneità statica</b> (il <i>dove</i>) = <code>host</code> (gate: niente ospite → 0) ×
-        media-geometrica di elevazione, pendenza, esposizione, pH, drenaggio × gate <b>habitat</b>
-        (bosco o prato, secondo il campo <code>habitat</code>).</li>
-      <li><b>readiness dinamica</b> (il <i>quando</i>) = gate(fenologia, umidità) ×
-        media-geometrica di pioggia, temperatura del suolo, shock termico, timing.</li>
-    </ul>
-    <p class="hint">I fattori graduati si combinano <b>morbidi</b> (media geometrica): un fattore
-      mediocre abbassa ma non azzera. I <b>gate</b> invece azzerano (host assente, fuori stagione,
-      suolo troppo secco, fuori dall'habitat giusto).</p>
-
-    <h2>Due cose che non stanno nel profilo, e che fanno inciampare</h2>
-    <ul>
-      <li><b>La mappa si ferma a Bolzano, Trento e Veneto.</b> Fuori da lì il forestale e la
-        geologia non arrivano, e un host sconosciuto vale «neutro»: promuoverebbe il
-        fuori-copertura come se l'ospite fosse quello giusto. Perciò fuori non si scora
-        affatto. Il layer <i>Confini area dati</i> sulla mappa disegna quel limite: se
-        l'idoneità si interrompe su una linea, è quella.</li>
-      <li><b>C'è una soglia di «carica» che nessun profilo contiene.</b> Una cella compare
-        nell'idoneità dinamica solo se pioggia, temperatura del suolo e shock termico
-        insieme superano <code>0.5</code>, <i>prima</i> di considerare il timing. Si può
-        allargare una soglia nel profilo e non vedere cambiare nulla, perché a fermare
-        tutto è questa. Sta in <code>engine/dynamic_scorer.py</code>
-        (<code>CHARGE_THR</code>).</li>
-    </ul>
-    <p class="hint">Lo spiegone completo dei due assi e delle fonti dei dati sta nel repo,
-      in <code>docs/COME-FUNZIONA.md</code>.</p>
+      punto di partenza, non verità assolute. I profili vivi si modificano dall'editor
+      (<a href="/admin/profiles">Profili</a>, riservato agli admin).</p>
 
     <hr>
     <h2>Identità</h2>

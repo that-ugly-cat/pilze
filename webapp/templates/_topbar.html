@@ -5,10 +5,10 @@
   <a class="tb-brand" href="/">🍄 Pilze</a>
   <a href="/log"{% if path == '/log' %} class="active"{% endif %}>Logga</a>
   <a href="/me"{% if path.startswith('/me') %} class="active"{% endif %}>Scheda</a>
+  <a href="/docs"{% if path == '/docs' %} class="active"{% endif %}>Doc</a>
   {% if user.is_admin %}
     <a href="/admin"{% if path == '/admin' %} class="active"{% endif %}>Utenti</a>
     <a href="/admin/profiles"{% if path == '/admin/profiles' %} class="active"{% endif %}>Profili</a>
-    <a href="/admin/docs"{% if path == '/admin/docs' %} class="active"{% endif %}>Doc</a>
   {% endif %}
   <span class="tb-sp"></span>
   <a href="/">← mappa</a>

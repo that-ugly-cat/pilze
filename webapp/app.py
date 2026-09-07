@@ -31,7 +31,9 @@ MAPS_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
 PHOTO_CACHE = Path(__file__).resolve().parent.parent / "data" / "photos"
 AOI_GEOJSON = Path(__file__).resolve().parent.parent / "data" / "aoi" / "aoi.geojson"
 
-app = FastAPI(title="Pilze")
+# Swagger/OpenAPI spenti: /docs qui è la documentazione per le persone, e le rotte
+# generate da FastAPI erano comunque pubbliche — elencavano tutta l'API senza login.
+app = FastAPI(title="Pilze", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
@@ -416,12 +418,46 @@ def admin_regen_status(request: Request):
     return JSONResponse(regen.status())
 
 
-@app.get("/admin/docs", response_class=HTMLResponse)
+DOC_MD = Path(__file__).resolve().parent.parent / "docs" / "COME-FUNZIONA.md"
+_DOC_CACHE: dict[str, str] = {}
+
+
+def _explainer():
+    """`docs/COME-FUNZIONA.md` reso in HTML, una volta per processo.
+
+    Il documento resta uno solo: si legge su GitHub come markdown e qui dentro come
+    pagina. Due copie divergerebbero, e la copia sbagliata sarebbe sempre quella letta.
+    """
+    if "html" not in _DOC_CACHE:
+        try:
+            text = DOC_MD.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            _DOC_CACHE["html"] = _DOC_CACHE["toc"] = ""
+            return _DOC_CACHE
+        # via il titolo di primo livello: la pagina ha già il suo
+        body = text.split("\n", 1)[1] if text.startswith("# ") else text
+        import markdown
+        md = markdown.Markdown(extensions=["tables", "fenced_code", "toc", "sane_lists"])
+        _DOC_CACHE["html"] = md.convert(body)
+        _DOC_CACHE["toc"] = md.toc
+    return _DOC_CACHE
+
+
+@app.get("/docs", response_class=HTMLResponse)
 def docs_page(request: Request):
-    u = _is_admin(request)
+    """Documentazione unica, per tutti: come funziona il modello, da dove vengono i dati,
+    e come si compila un profilo. Era admin-only e parlava solo dei profili."""
+    u = _user(request)
     if not u:
-        return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "docs.html", {"user": u})
+        return RedirectResponse("/login", status_code=303)
+    doc = _explainer()
+    return templates.TemplateResponse(request, "docs.html",
+                                      {"user": u, "explainer": doc["html"], "toc": doc["toc"]})
+
+
+@app.get("/admin/docs")
+def docs_page_old(request: Request):
+    return RedirectResponse("/docs", status_code=301)      # la doc non è più roba da admin
 
 
 # --- API (tutte richiedono login) ---------------------------------------- #

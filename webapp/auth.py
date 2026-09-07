@@ -58,7 +58,10 @@ def create_user(username: str, password: str, is_admin: bool = False,
     if conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
         conn.close(); return False
     salt = secrets.token_hex(16)
-    conn.execute("INSERT INTO users VALUES (?,?,?,?,?)",
+    # colonne esplicite: con VALUES posizionale, la prima migrazione che aggiunge una
+    # colonna rompe la creazione di account ("7 columns but 5 values supplied")
+    conn.execute("INSERT INTO users (username, pw_hash, salt, is_admin, created) "
+                 "VALUES (?,?,?,?,?)",
                  (username, _hash(password, salt), salt, int(is_admin),
                   datetime.now(timezone.utc).isoformat(timespec="seconds")))
     conn.commit(); conn.close(); return True
@@ -87,7 +90,7 @@ def verify(username: str, password: str, db_path: Path | str = DB_PATH) -> bool:
 def open_session(username: str, db_path: Path | str = DB_PATH) -> str:
     token = secrets.token_urlsafe(32)
     conn = _connect(db_path)
-    conn.execute("INSERT INTO sessions VALUES (?,?,?)",
+    conn.execute("INSERT INTO sessions (token, username, created) VALUES (?,?,?)",
                  (token, username, datetime.now(timezone.utc).isoformat(timespec="seconds")))
     conn.commit(); conn.close(); return token
 
