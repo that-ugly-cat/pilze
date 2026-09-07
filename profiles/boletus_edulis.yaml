@@ -25,7 +25,10 @@ species:
     aspect: cool         # fresca; anche assolata in quota
     slope_deg: { opt: [5, 30] }
     soil_ph: acidic      # pH 4–6, humus, non troppo sassoso
-    drainage: well_drained
+    # Era `well_drained`, scritto quando il fattore non faceva niente. Misurato:
+    # moist +0.782, assente +0.713, well_drained +0.681 (Boyce sull'intorno, 379 punti).
+    # Il porcino di qui sta sul piede del versante, non sul crinale.
+    drainage: moist
 
   extra_static_layers: []
   phenology_months: [8, 9, 10, 11]     # fine estate in quota → autunno a quote basse

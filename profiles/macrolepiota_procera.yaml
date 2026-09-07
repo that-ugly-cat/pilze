@@ -1,0 +1,83 @@
+# Profilo specie — Macrolepiota procera (mazza di tamburo)
+#
+# Saprotrofo di lettiera: nessun partner arboreo, quindi niente host_genera (il motore li
+# ignorerebbe comunque). Specie di terreni aperti e non concimati — pascoli, prati da
+# sfalcio, bordi strada — E dei margini, delle radure e delle tagliate erbose dentro il
+# bosco di latifoglie. È la prima specie di ECOTONO della collezione, ed è la ragione per
+# cui `habitat` accetta dei pesi.
+#
+# Tarato il 7 set 2026 su 432 punti GBIF nel bbox (310 dentro l'AOI), sempre confrontati
+# con un background di Agaricales nella stessa area: senza quel confronto si misura dove
+# guarda la gente, non dove sta il fungo.
+
+species:
+  id: macrolepiota_procera
+  common_name: mazza di tamburo
+  trophic_mode: saprotrophic
+  similar_to: [coprinus_comatus]        # l'altro saprotrofo di terreno aperto
+
+  # Né bosco né prato: il margine fra i due. Al pixel esatto il 65.5% dei suoi punti cade
+  # su tree cover e il 30.8% su prato (lo sforzo di osservazione sta a 55.7 / 30.5), perché
+  # una radura di venti metri sta dentro un pixel WorldCover di bosco. Con `grassland` da
+  # solo un terzo delle presenze note finirebbe sotto 0.1; con `forest` si vieterebbero i
+  # pascoli. Seminativo e costruito sono esclusi apposta: alle presenze valgono 0.007 e
+  # 0.018 di frazione, cioè esattamente quanto al fondo — nessun segnale, nessun peso.
+  habitat:
+    grassland: 1.0
+    forest: 0.7
+
+  static_envelope:
+    # p10 731 m, mediana 1280, p90 1775 sui punti dentro l'AOI; lo sforzo sta a 536 / 1126 /
+    # 1664, quindi lo scarto verso l'alto è reale ma piccolo (+150 m di mediana). `min: 0`
+    # con opt a 300 lascia la pianura in gioco penalizzata: sotto i 200 m la specie è cinque
+    # volte più rara di quanto lo sforzo predica, e la bassa pianura è agricoltura intensiva,
+    # il contrario del terreno non migliorato che vuole. La spalla a 2200 mette a 0.5 quota
+    # 2000, che è il tetto dichiarato dalla bibliografia.
+    elevation_m: { min: 0, opt: [300, 1800], max: 2200 }
+    slope_deg: { opt: [0, 20], max: 35 }
+    # Misurato, e contro l'attesa: il 51.9% dei punti sta su versante fresco contro il 16.3%
+    # dello sforzo (e il 34% del terreno boscato). Il rapporto è 3.2×, il segnale più netto
+    # di tutto il profilo. Con lo scorer ammorbidito (0.35 sul versante sbagliato) resta una
+    # tendenza, non una legge.
+    aspect: cool
+    # Le fonti dicono «silicei, pH tendenzialmente acido o subacido», ma `acidic` nel motore
+    # significa calcareo = 0.15, cioè un fattore 6.7 che spegnerebbe le Dolomiti, dove i
+    # pascoli producono. `tolerant` dice «lieve preferenza, nessun veto». Da falsificare col
+    # Boyce quando la specie avrà una mappa: con 310 punti nell'AOI è la seconda base di
+    # validazione dopo il porcino.
+    soil_ph: tolerant
+    # Ai punti: 64.5% well_drained, 17.4% dry, 17.1% moist. Lo sforzo sta a 76.6 / 6.3 / 13.9,
+    # quindi il crinale è sovrarappresentato 2.8× — coerente con «luoghi luminosi e ventilati».
+    # Il motore non ha `dry` fra le preferenze dichiarabili: `well_drained` è la più vicina.
+    drainage: well_drained
+    # Fattore opt-in, e qui è un colpetto e non una decisione: alla finestra attuale (250 m)
+    # il contrasto col fondo è solo 1.16× sulla mediana, e si fa netto solo stringendo a
+    # ~75-100 m. `min` negativo perché a densità di bordo zero deve restare una penalità
+    # (0.56), non un veto: i trapezi toccano lo zero al bordo inferiore, e un fattore debole
+    # non deve poter azzerare una cella.
+    edge_density: { min: -0.1, opt: [0.08, 1.0] }
+
+  extra_static_layers: []
+
+  # Rapporto fra quota mensile della specie e quota mensile dello sforzo, dentro il bbox:
+  # lug 1.11 · ago 1.22 · set 1.08 · ott 1.58 — e ottobre è il mese più "da procera" di
+  # tutti, una volta tolto l'effetto dei raccoglitori d'agosto. Giugno (0.83) e novembre
+  # (0.90) restano fuori dalla lista perché la rampa sui mesi adiacenti li mette già a 0.15,
+  # che è il valore giusto per una coda: presenti, improbabili.
+  phenology_months: [7, 8, 9, 10]
+
+  # PRIMA PASSATA. Percentili misurati sull'archivio ICON-D2 (416.801 righe, mesi 7-9,
+  # finestra da 18 giorni, 310.535 celle-giorno), con lo standard di casa: pioggia al p40,
+  # shock alla mediana. Due avvertenze: l'archivio parte dal 20 giugno, quindi OTTOBRE non
+  # c'è, ed è il mese migliore della specie; e le sue celle sono le candidate delle specie
+  # di bosco, mentre una specie di margine ne pescherebbe anche di fondovalle.
+  dynamic_triggers:
+    rain_window_days: 18        # > lag max, altrimenti l'innesco esce dalla finestra
+    cumulative_rain_mm: 55      # p40 della cumulata a 18 gg (56.6)
+    soil_temp_c: { min: 8, max: 22 }   # banda calda: agosto e settembre sono i suoi mesi
+    thermal_shock_c: 1.5        # la mediana osservata (1.48); qui il calo è la firma del
+                                # temporale, non un requisito biologico a sé
+    lag_days: { opt: [6, 14] }  # saprotrofo di lettiera: più svelto dell'edulis (10-20),
+                                # più lento del coprino (4-10) perché il carpoforo è grosso
+    moisture_floor: 0.15        # rete anti-siccità (~p20), non un discriminante: l'umidità
+                                # assoluta di ICON-D2 dipende dalla tessitura del box

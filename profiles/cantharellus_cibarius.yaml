@@ -30,7 +30,10 @@ species:
     aspect: cool          # fresca/ombrosa (versanti N), ma ampio
     slope_deg: { opt: [5, 30] }
     soil_ph: acidic       # acido, ricco di humus
-    drainage: moist       # umido (declina verso il secco; gestito morbido dallo scorer)
+    # Era `moist`, scritto quando il fattore non era misurato da nessun layer. Col
+    # drenaggio topografico attivo (7 set 2026) il Boyce sull'intorno dice l'opposto:
+    # well_drained +0.652, non dichiarare niente +0.592, moist +0.377.
+    drainage: well_drained
 
   extra_static_layers: []
   phenology_months: [5, 6, 7, 8, 9, 10]  # primavera→autunno, picco estate–autunno
