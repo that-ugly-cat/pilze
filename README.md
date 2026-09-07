@@ -60,7 +60,9 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   (quadrati per fase), **ritrovamenti**, **confini area dati** (BZ+TN+VE, spiega dove si ferma
   l'idoneità), e **"trova spot migliori"** (top-50 per specie: statica /
   dinamica / prodotto, secondo i layer attivi; con **"vicino a me"** i migliori N entro
-  un raggio dal punto di casa, filtrando *prima* della classifica). Editor profili online + rigenerazione mappe
+  un raggio dal punto di casa, filtrando *prima* della classifica) e **"condividi un
+  punto"** (link che porta punto, zoom, specie, soglie e layer accesi: chi lo apre vede
+  la stessa identica cosa, dopo il login). Editor profili online + rigenerazione mappe
   on-demand, pagina Doc, mobile (tooltip al tap). **Cattura:** form `/log` — pin su mappa
   o GPS del telefono, ritrovamenti/vuoti/foto. **Deploy:** Docker (web+poller) → borant.
 - **Da fare:** **taratura host/gate** — dentro l'AOI il 25–47% dei punti GBIF di presenza

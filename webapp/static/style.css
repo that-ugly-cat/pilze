@@ -168,3 +168,10 @@ label.near { margin: 2px 0 4px !important; font-size: 14px; }
 .doc td, .doc th { vertical-align: top; }
 .doc .live { background: #eef4ee; border: 1px solid #cfe0d3; border-radius: 6px;
   padding: 8px 12px; font-size: 13px; margin: 10px 0 16px; }
+
+/* --- condividi un punto --------------------------------------------------- */
+#share { width: 100%; margin: 8px 0 2px; background: #3b6ea5; }
+#share:hover { background: #35618f; }
+#share.armed { background: #a33; }
+.obs-pin.shared { font-size: 22px; opacity: 1; }
+#toast a { word-break: break-all; }

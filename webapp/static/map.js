@@ -19,6 +19,43 @@ const isTouch = window.matchMedia('(hover: none)').matches;   // niente hover (t
 
 const sel = document.getElementById('species');
 const status = document.getElementById('status');
+
+// --- stato della vista: URL condiviso, poi ultima specie vista ------------- //
+// L'URL vince sempre: chi apre un link condiviso deve vedere esattamente quel punto
+// con quella configurazione, non le sue preferenze di ieri.
+const params = new URLSearchParams(location.search);
+const SPECIES_KEY = 'pilze.species';
+
+function applyUrlState() {
+  const setCheck = (id, key) => {
+    if (params.has(key)) document.getElementById(id).checked = params.get(key) === '1';
+  };
+  if (params.has('sp') && [...sel.options].some(o => o.value === params.get('sp')))
+    sel.value = params.get('sp');
+  else {
+    try {                                   // niente URL → l'ultima specie guardata
+      const last = localStorage.getItem(SPECIES_KEY);
+      if (last && [...sel.options].some(o => o.value === last)) sel.value = last;
+    } catch (e) { /* storage negato: resta la prima della lista */ }
+  }
+  if (params.has('cut')) {
+    cutoff.value = params.get('cut');
+    cutVal.textContent = parseFloat(cutoff.value).toFixed(2);
+    gridLayer._cutoff = parseFloat(cutoff.value);
+  }
+  if (params.has('op')) {
+    opacity.value = params.get('op');
+    opVal.textContent = Math.round(opacity.value * 100) + '%';
+  }
+  setCheck('l-static', 'st'); setCheck('l-pronte', 'dy');
+  setCheck('l-pins', 'pi'); setCheck('l-aoi', 'ao');
+  if (params.has('lat') && params.has('lon')) {
+    const ll = L.latLng(parseFloat(params.get('lat')), parseFloat(params.get('lon')));
+    map.setView(ll, params.has('z') ? parseInt(params.get('z')) : 14);
+    return ll;                              // punto condiviso: lo si marca dopo il load
+  }
+  return null;
+}
 let pronteLayer = null, pinsLayer = null, topLayer = null, aoiLayer = null;
 
 function setStatus(t) { status.textContent = t; }
@@ -194,9 +231,12 @@ function showTipAt(ll) {
   if (!tip._map) tip.addTo(map);
 }
 
-if (isTouch) map.on('click', (ev) => showTipAt(ev.latlng));
-else {
-  map.on('mousemove', (ev) => showTipAt(ev.latlng));
+map.on('click', (ev) => {
+  if (sharing) return doShare(ev.latlng);
+  if (isTouch) showTipAt(ev.latlng);
+});
+if (!isTouch) {
+  map.on('mousemove', (ev) => { if (!sharing) showTipAt(ev.latlng); });
   map.on('mouseout', hideTip);
 }
 
@@ -375,8 +415,60 @@ async function findTopSpots() {
 }
 document.getElementById('find-spots').addEventListener('click', findTopSpots);
 
+// --- condividi un punto ---------------------------------------------------- //
+// Il link porta punto, zoom, specie, soglie e layer accesi: chi lo apre vede la stessa
+// identica cosa. Non serve renderlo segreto — tutta l'app sta dietro il login, e chi non
+// ce l'ha viene mandato ad accedere e poi ributtato qui, parametri compresi.
+const shareBtn = document.getElementById('share');
+let sharing = false;
+let sharedPin = null;
+
+function shareUrl(ll) {
+  const p = new URLSearchParams({
+    lat: ll.lat.toFixed(5), lon: ll.lng.toFixed(5), z: map.getZoom(),
+    sp: sel.value, cut: parseFloat(cutoff.value).toFixed(2),
+    op: parseFloat(opacity.value).toFixed(2),
+    st: document.getElementById('l-static').checked ? 1 : 0,
+    dy: document.getElementById('l-pronte').checked ? 1 : 0,
+    pi: document.getElementById('l-pins').checked ? 1 : 0,
+    ao: document.getElementById('l-aoi').checked ? 1 : 0,
+  });
+  return `${location.origin}/?${p}`;
+}
+
+function setSharing(on) {
+  sharing = on;
+  shareBtn.classList.toggle('armed', on);
+  shareBtn.textContent = on ? '✕ annulla condivisione' : '🔗 Condividi un punto';
+  map.getContainer().style.cursor = on ? 'crosshair' : '';
+  if (on) setStatus('tocca il punto da condividere');
+  else if (status.textContent === 'tocca il punto da condividere') setStatus('');
+}
+shareBtn.addEventListener('click', () => setSharing(!sharing));
+
+async function doShare(ll) {
+  setSharing(false);
+  const url = shareUrl(ll);
+  markShared(ll);
+  let copiato = false;
+  try { await navigator.clipboard.writeText(url); copiato = true; } catch (e) { /* niente permesso */ }
+  toast((copiato ? '🔗 Link copiato: ' : '🔗 Link (copialo): ')
+        + `<a href="${url}">${url.replace(location.origin, '')}</a>`, 12000);
+}
+
+function markShared(ll) {
+  if (sharedPin) map.removeLayer(sharedPin);
+  sharedPin = L.marker(ll, { icon: L.divIcon({
+    className: '', iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -24],
+    html: '<span class="obs-pin shared">📌</span>' }) }).addTo(map);
+  sharedPin.bindPopup('<b>punto condiviso</b>').openPopup();
+}
+
 function reloadAll() { loadStatic(); loadPronte(); loadPins(); loadAoi(); }
-sel.addEventListener('change', () => { loadStatic(); loadPronte(); clearTopSpots(); });
+sel.addEventListener('change', () => {
+  try { localStorage.setItem(SPECIES_KEY, sel.value); } catch (e) { /* storage negato */ }
+  loadStatic(); loadPronte(); clearTopSpots();
+});
 document.getElementById('l-static').addEventListener('change', loadStatic);
 document.getElementById('l-pronte').addEventListener('change', loadPronte);
 document.getElementById('pronte-op').addEventListener('input', () => {
@@ -385,4 +477,6 @@ document.getElementById('pronte-op').addEventListener('input', () => {
 });
 document.getElementById('l-pins').addEventListener('change', loadPins);
 document.getElementById('l-aoi').addEventListener('change', loadAoi);
+const sharedPoint = applyUrlState();
 reloadAll();
+if (sharedPoint) markShared(sharedPoint);

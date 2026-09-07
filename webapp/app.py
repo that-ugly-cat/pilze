@@ -77,18 +77,32 @@ def _user(request: Request):
 
 
 # --- auth ---------------------------------------------------------------- #
+def _safe_next(nxt: str | None) -> str:
+    """Destinazione dopo il login, se è un percorso di questo sito.
+
+    Serve ai link condivisi: senza, chi apre un link e non ha la sessione aperta finisce
+    sulla mappa generica e il punto è perso. Solo path assoluti locali — "//altrove.it"
+    è un URL protocol-relative e sarebbe un open redirect."""
+    if not nxt or not nxt.startswith("/") or nxt.startswith("//"):
+        return "/"
+    return nxt
+
+
 @app.get("/login", response_class=HTMLResponse)
-def login_form(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"err": None})
+def login_form(request: Request, next: str | None = None):
+    return templates.TemplateResponse(request, "login.html",
+                                      {"err": None, "next": _safe_next(next)})
 
 
 @app.post("/login")
-def login(request: Request, username: str = Form(...), password: str = Form(...)):
+def login(request: Request, username: str = Form(...), password: str = Form(...),
+          next: str = Form("/")):
     if auth.verify(username, password):
-        resp = RedirectResponse("/", status_code=303)
+        resp = RedirectResponse(_safe_next(next), status_code=303)
         resp.set_cookie("pilze_session", auth.open_session(username), httponly=True, samesite="lax")
         return resp
-    return templates.TemplateResponse(request, "login.html", {"err": "Credenziali errate"})
+    return templates.TemplateResponse(request, "login.html",
+                                      {"err": "Credenziali errate", "next": _safe_next(next)})
 
 
 @app.get("/logout")
@@ -104,7 +118,9 @@ def logout(request: Request):
 def home(request: Request):
     u = _user(request)
     if not u:
-        return RedirectResponse("/login", status_code=303)
+        from urllib.parse import quote
+        return RedirectResponse(f"/login?next={quote(str(request.url.path) + ('?' + request.url.query if request.url.query else ''), safe='')}",
+                                status_code=303)
     prof = auth.get_user(u["username"]) or {}
     return templates.TemplateResponse(request, "map.html",
                                       {"user": u, "species": _species_list(),
