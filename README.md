@@ -26,9 +26,10 @@ engine/       motore species-agnostic: membership · static_scorer (gate host + 
 gis/          layer + pipeline:
                 fetch_dem/forest/geology/geology_bz/worldcover/canopy   acquisizione layer grezzi
                 fetch_boundaries.py                                     AOI: confini ISTAT BZ+TN+VE
-                providers.py   AOI(area con dati tematici) · DEM · Forest(CFI2020 VE+TN+BZ) ·
-                               WorldCover(gate forest+grassland) · Geology(soil_ph) ·
-                               Canopy(chioma viva)
+                make_tpi.py                                             drenaggio: posizione topografica dal DEM
+                providers.py   AOI(area con dati tematici) · DEM(+drenaggio) · Forest(CFI2020 VE+TN+BZ) ·
+                               WorldCover(gate a pesi sulle 10 classi + edge_density) ·
+                               Geology(soil_ph) · Canopy(chioma viva)
                 occurrences.py (GBIF) · boyce.py · validate.py          validazione
                 grid.py · make_map.py                                    mappa statica (200 m)
                 meteo.py · fetch_meteo.py · predict_today.py             asse dinamico + top_spots
@@ -38,7 +39,8 @@ bot/          persistenza osservazioni (SQLite, §6.1). Nome storico: la cattura
 webapp/       web app FastAPI + Leaflet: auth · admin (utenti · editor profili + rigenerazione ·
                 doc) · mappa (idoneità statica/dinamica/ritrovamenti · trova-spot · mobile) ·
                 /log (cattura) · /me (scheda: casa, password, storico modificabile)
-tests/        33 test (motore · provider · gate · AOI · intorno · account · osservazioni)
+tests/        40 test (motore · provider · gate a pesi · pavimento host · bordo · TPI ·
+                AOI · intorno · account · osservazioni)
 Dockerfile · docker-compose.yml · DEPLOY.md
 ```
 

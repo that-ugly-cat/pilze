@@ -52,9 +52,10 @@ species:
   id: ${id}                     # = nome del file, non cambiare
   common_name: ${id}            # nome comune (mostrato nel menu specie)
   trophic_mode: mycorrhizal     # mycorrhizal | saprotrophic | facultative
-  # habitat: forest             # forest (default) | grassland (saprotrofi di prato, senza host_genera)
+  # habitat: forest             # forest (default) | grassland | cropland | built_up | bare ...
+  #                             # o a pesi: { grassland: 1.0, forest: 0.7 } per le specie di margine
 
-  # HOST — tipi di bosco in cui fa simbiosi, peso 0-1 (1 = ideale). I tipi non elencati = 0.
+  # HOST — tipi di bosco in cui fa simbiosi, peso 0-1 (1 = ideale). I non elencati = pavimento 0.12.
   # Le 20 classi: pecceta pecceta_secondaria abetina larici_cembreto faggeta mugheta
   #   pineta_silvestre pineta_nera castagneto querceto querceto_rovere querco_carpineto
   #   orno_ostrieto lecceta acero_frassineto frassineto alneto altre_latifoglie

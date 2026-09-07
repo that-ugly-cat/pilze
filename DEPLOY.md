@@ -46,6 +46,16 @@ risultato non si spinge più via git — vedi «Cosa viaggia e cosa no».
 Serve rigenerare dopo: un cambio di profilo che tocca `static_envelope` o `host_genera`,
 un layer nuovo, o un cambio dell'AOI.
 
+**Un passo in più dopo `fetch_dem`.** Il drenaggio viene da un raster precalcolato dal DEM:
+
+```bash
+docker compose exec web python -m gis.make_tpi     # 12 tile, qualche minuto, una volta sola
+```
+
+Scrive `data/dem_tpi/` (~155 MB, nel volume come gli altri layer) e va rilanciato solo se
+cambia il DEM. Se la cartella non c'è il sistema funziona lo stesso: il `drainage` torna
+«non misurato» e il fattore resta neutro, esattamente come prima del 7 set 2026.
+
 ## Note
 - Cold-start meteo: le somme di pioggia mobili si riempiono dopo ~2–4 settimane di poller; l'umidità del suolo dà segnale dal giorno 1.
 - La cattura è il form `/log` della web app: i ritrovamenti sono **condivisi** fra gli account.

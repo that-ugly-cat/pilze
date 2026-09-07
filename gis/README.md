@@ -33,7 +33,17 @@ Tutti i layer si riproiettano qui.
 - **Fonte primaria (attuale): CFI2020 nazionale** (MASAF) — legenda genere unica (campo `Ct_CFI`,
   categorie INFC) per VE+Trento+Bolzano; copre 84% del bosco TN. `ForestProvider.cfi()`, crosswalk `cfi:`.
 - Fallback/storico: Veneto = Carta Regionale Tipi Forestali; Trentino = SIGFAT (copre solo ~39%).
-- Gate "è bosco?" separato e completo: **WorldCover** (`WorldCoverProvider`), non i dati genere parziali.
+- Gate "è l'habitat giusto?" separato e completo: **WorldCover** (`WorldCoverProvider`), non i dati
+  genere parziali. Il profilo dichiara quali delle 10 classi contano e con che peso, così una specie
+  di ecotono non è costretta a scegliere fra bosco e prato. Lo stesso provider dà `edge_density`,
+  la quota di confine bosco/prato nell'intorno.
+
+## 3-bis. Drenaggio → `drainage`, dal DEM (§3.1)
+`gis/make_tpi.py` precalcola la posizione topografica relativa (dove sta il pixel fra il fondo e la
+cresta del suo intorno di 500 m), normalizzata sul rilievo locale: crinale → `dry`, versante →
+`well_drained`, conca → `moist`, fondo piatto → `waterlogged`. Sotto 20 m di rilievo nell'intorno
+resta «non misurato» e il fattore è neutro: in pianura un DEM a 30 m non sa rispondere. Una volta
+sola dopo `fetch_dem`; senza `data/dem_tpi/` tutto funziona come prima.
 
 ## 4. Disturbo Vaia + bostrico → `canopy_alive` (CRITICO per edulis/pinophilus, §3.1)
 - Meglio di una maschera statica: **NDVI/NBR da Sentinel-2** aggiornato periodicamente.

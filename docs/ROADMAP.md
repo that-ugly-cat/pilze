@@ -66,6 +66,54 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
       dinamico. Non è un parametro, è la forma della domanda.
 - [ ] Background forestato + CV a blocchi spaziali (§6.3): resta il limite noto del Boyce.
 
+## I gate e il terreno (7 set 2026) — vedi COME-FUNZIONA
+- [x] **Le due cause dello zero, separate**: dei punti GBIF che scoravano 0, è l'**host**
+      (25–47%) e non il gate di copertura (≤3.1%). Nessun punto azzerato da entrambi.
+- [x] **`host_floor` per specie** (default 0 = veto secco di sempre): quanto vale l'ospite
+      sbagliato. Nasce come costante globale a 0.12 e il Boyce la falsifica in mezz'ora —
+      all'ovolo vale +0.25, al porcino ne costa 0.44 — quindi è un campo di profilo.
+- [ ] **Decidere `host_floor` dell'ovolo** (0.12 → +0.688 contro +0.433, ma su 17 punti;
+      l'ipotesi rivale «manca la faggeta nella lista host» dà meno, +0.602 a peso 0.20).
+- [x] **Gate di copertura a pesi**: `habitat` accetta `{classe: peso}` sulle 10 classi
+      WorldCover, non più una classe sola. Serve alle specie di ecotono; la forma a stringa
+      resta e vale un peso 1.
+- [x] **`edge_density`** (WorldCover): quota di confine bosco/prato nell'intorno, fattore
+      **opt-in** — il primo che descrive la configurazione del paesaggio e non la
+      composizione.
+- [x] **Finestra del gate in metri** (era 0.0025° = 555 × 385 m a 46°N, un rettangolo per
+      un fatto di gradi). Resta ~25 ha contro i 4 della cella: stringerla è un esperimento
+      da fare, `WorldCoverProvider.HALF_M` è il posto.
+- [x] **Drenaggio misurato** (`gis/make_tpi.py`): posizione topografica relativa dal DEM,
+      normalizzata sul rilievo locale. Chiude l'either/or «o una fonte, o via dai pesi».
+      Sul piatto dichiara «non misurato» invece di inventare.
+- [x] **`validate` stampa pixel e intorno affiancati, più il divario**: l'intorno prende il
+      massimo di un 3×3 ed è quindi cieco ai gate troppo stretti. Il divario è il budget di
+      errore spaziale dei gate.
+- [ ] **Ritarare la preferenza `drainage` dei profili** ora che il fattore esiste: era
+      scritta sapendo che non faceva niente, e infatti il Boyce peggiora dove la
+      preferenza dichiarata non regge (finferlo).
+- [ ] **Rigenerare le mappe**: i punteggi assoluti si spostano (sparisce la decurtazione
+      costante del drenaggio) e le soglie 0.3/0.4 dell'interfaccia vanno rilette.
+- [ ] **La soglia 0.4 non vuol dire la stessa cosa per tutti.** Su 1500 celle a caso
+      dentro l'AOI stanno sopra 0.4: ovolo 2.7%, estatino 7.3%, porcino rosso 14.8%,
+      porcino 18.1%, finferlo 18.9%, **mazza di tamburo 43.1%**. Le micorriziche prendono
+      quasi tutta la selettività dal gate host, che un saprotrofo non ha. Finché la soglia
+      è assoluta, «celle candidate» (e quindi il carico del poller) dipende dalla modalità
+      trofica invece che dalla specie: servirebbe una soglia a percentile per specie, cioè
+      «il primo x% dell'AOI», in `predict_today.static_thr`.
+
+## Il ramo prato — quando si aprirà
+Il gate a pesi e `edge_density` sono l'infrastruttura; i dati veri del prato mancano ancora.
+- [ ] **HRL Grassland** (Copernicus, 10 m 2018, + rilevazione degli sfalci 2017–2021,
+      gratuito): il prato a piena risoluzione e, soprattutto, **l'intensità di gestione** —
+      per le specie di prato non concimato è il discriminante ecologico vero, e oggi non
+      esiste in nessun layer.
+- [ ] **Carta di copertura del suolo regionale** come «crosswalk del prato»: il Veneto ha
+      la nuova edizione vettoriale su ortofoto 2021, nomenclatura Corine fino al 5º livello,
+      con «Prati stabili (foraggere permanenti)» distinti dai seminativi. Analoghi PAT e
+      Bolzano da verificare. Stesso pattern di CFI e geologia: scarico a mano, un
+      `grasswalk.yaml`, e i profili pesano prato stabile / pascolo / seminativo.
+
 ## v4 — apprendimento
 - [ ] **Learner statico**: presenza+zeri → pesi statici, update **grossolano** (sposta il profilo,
       non i singoli fattori — credit assignment impossibile con poche decine di punti). Online/bayesiano.
@@ -76,6 +124,13 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
 ## ongoing
 - [ ] Nuove specie via profili (§7). Nuove modalità trofiche: morchelle (ramo primaverile,
       `hydrography_distance`/`burn_areas`), *Coprinus* (logica invertita bosco↔prato).
+- [~] **Mazza di tamburo** (`profiles/macrolepiota_procera.yaml`, 7 set 2026): prima specie
+      di **ecotono**, e il banco di prova del gate a pesi. Tarata su 432 punti GBIF contro
+      un background di Agaricales. Boyce sull'intorno **+0.967**, zero presenze a zero — ma
+      è anche il profilo meno selettivo della collezione (43.1% dell'AOI sopra 0.4), perché
+      senza gate host la selettività dovrebbe venire dal bordo, che alla finestra attuale
+      discrimina poco. Da decidere prima di metterla in produzione: rigenerare così, o
+      stringere prima la finestra del gate.
 
 ---
 **Assi di apprendimento SEPARATI** (§6.2): non mescolare le feature statiche di un ritrovamento

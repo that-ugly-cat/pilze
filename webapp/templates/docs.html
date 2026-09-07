@@ -34,8 +34,13 @@
       <tr><td><code>common_name</code></td><td>testo libero</td><td>nome comune, mostrato nel menu.</td></tr>
       <tr><td><code>trophic_mode</code></td><td><code>mycorrhizal</code> · <code>saprotrophic</code> · <code>facultative</code></td>
         <td>solo le micorriziche usano <code>host_genera</code> come gate.</td></tr>
-      <tr><td><code>habitat</code></td><td><code>forest</code> (default) · <code>grassland</code></td>
-        <td>quale gate di copertura (WorldCover): bosco o prato. Le saprotrofe di prato
+      <tr><td><code>habitat</code></td><td><code>forest</code> (default) · <code>grassland</code> ·
+          <code>cropland</code> · <code>built_up</code> · <code>bare</code> · <code>moss_lichen</code> ·
+          <code>shrubland</code> · <code>wetland</code> · <code>water</code> · <code>snow_ice</code><br>
+          oppure <code>{ classe: peso, … }</code></td>
+        <td>quale copertura (WorldCover) fa da gate. Una classe sola = peso 1; il dizionario
+          somma le frazioni pesate ed è la forma per le specie di <b>ecotono</b>, che stanno sul
+          margine e con una classe sola perderebbero metà dell'habitat. Le saprotrofe di prato
           usano <code>grassland</code> (+ <code>trophic_mode: saprotrophic</code>, senza host_genera).</td></tr>
       <tr><td><code>similar_to</code></td><td>lista di <code>id</code></td><td>opzionale, per il pooling futuro.</td></tr>
     </table>
@@ -45,7 +50,14 @@
     <p>Dizionario <code>classe: peso</code> (peso <code>0–1</code>). Ogni cella ha <b>un</b> tipo di
       bosco (dalla carta forestale CFI2020); il suo peso nel profilo è l'affinità della specie con
       quel tipo. <b>1.0</b> = ideale, <b>0.x</b> = secondario, <b>assente</b> = non ospite (0).
-      Se la cella è micorrizica ma nessun tipo compatibile → idoneità 0.</p>
+      Se la cella è micorrizica e nessun tipo è compatibile → idoneità 0.</p>
+    <p><code>host_floor</code> (opzionale, default <code>0</code>) ammorbidisce quel veto: è quanto
+      vale l'ospite <b>sbagliato</b>. Serve dove la lista è stretta per dottrina ma i ritrovamenti
+      cadono fuori — la CFI dà una categoria per poligono di gestione, e «faggeta» non vuol dire
+      «non c'è un abete». È per specie e non per il motore, perché misurato col Boyce un pavimento
+      a 0.12 vale <b>+0.25</b> all'ovolo e ne costa <b>0.44</b> al porcino. Restano veti secchi il
+      <b>fuori-bosco</b> e la <b>chioma morta</b> (Vaia/bostrico), che sono affermazioni diverse da
+      «qui il bosco è di un altro tipo».</p>
     <p>Le <b>20 classi</b> (tipi forestali CFI):</p>
     <table>
       <tr><th>conifere</th><th>latifoglie</th></tr>
@@ -77,11 +89,17 @@
       <tr><td><code>soil_ph</code></td><td><code>acidic</code> · <code>neutral</code> · <code>calcareous</code> · <code>tolerant</code></td>
         <td><code>tolerant</code> = va bene su tutti i pH.</td></tr>
       <tr><td><code>drainage</code></td><td><code>well_drained</code> · <code>moist</code></td>
-        <td>drenaggio preferito del suolo.</td></tr>
+        <td>drenaggio preferito. Misurato dalla posizione topografica (crinale → asciutto,
+          conca piatta → impregnato); dove il terreno è piatto resta «non misurato» e non penalizza.</td></tr>
+      <tr><td><code>edge_density</code></td><td><code>{ opt: [a, b] }</code>, frazione <code>0–1</code></td>
+        <td><b>opt-in</b>: entra nel punteggio solo se lo dichiari. Quota di confine bosco/prato
+          nell'intorno — serve alle specie di <b>margine</b>, invisibili a qualunque frazione di
+          copertura perché il margine è più stretto di un pixel. Ordine di grandezza nell'AOI:
+          mediana 0.05, p90 0.14.</td></tr>
     </table>
-    <p class="hint">Il gate di copertura (WorldCover, completo) NON sta nel profilo ma dipende da
-      <code>habitat</code>: per le specie di bosco azzera fuori dal bosco, per quelle di prato
-      fuori dal prato. Il canopy (Sentinel-2) declassa a parte le conifere a chioma morta.</p>
+    <p class="hint">Il gate di copertura (WorldCover, completo) NON sta qui ma in
+      <code>habitat</code>: azzera fuori dalle coperture dichiarate, con gradazione. Il canopy
+      (Sentinel-2) declassa a parte le conifere a chioma morta.</p>
 
     <hr>
     <h2>phenology_months — quando fruttifica <span class="badge">gate</span></h2>

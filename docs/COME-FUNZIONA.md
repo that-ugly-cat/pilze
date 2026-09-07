@@ -56,14 +56,67 @@ la mappa dava 0.74 all'Adamello occidentale, dove non esiste un dato forestale. 
 confine di validità di quella regola, e togliendolo si tolgono il 47% delle celle sopra 0.4.
 
 **Host — l'ospite micorrizico.** Dal profilo: un peso [0,1] per ciascuna delle 20 classi
-forestali. Ospite noto e incompatibile → 0 (per l'edulis, una larice-cembreta vale zero, e
-la spec lo dice esplicito: mai larice). Ospite **sconosciuto** → 1.0, neutro. I saprotrofi
-saltano il gate: per loro l'albero non è il partner.
+forestali. Ospite **sconosciuto** → 1.0, neutro. Ospite noto e incompatibile → 0, salvo
+che il profilo dichiari un `host_floor`. I saprotrofi saltano il gate: per loro l'albero
+non è il partner.
 
-**Habitat — «è il posto giusto?».** Da WorldCover, che ha copertura completa: la frazione
-di *tree cover* per le specie di bosco, quella di *grassland* per i saprotrofi di prato.
+> **Le due cause dello zero, separate** (7 set 2026). Il 25–47% delle presenze GBIF scorava
+> esattamente zero, e questa pagina diceva che le due cause possibili — ospite
+> incompatibile, oppure gate di copertura su coordinate imprecise — andavano separate prima
+> di dare la colpa ai pesi. Separate: **è l'ospite**, e non è nemmeno vicino.
+>
+> | specie | presenze a zero | solo habitat | **solo host** |
+> |---|---:|---:|---:|
+> | ovolo | 47.1% | 0.0% | **47.1%** |
+> | porcino | 28.5% | 2.9% | **25.6%** |
+> | estatino | 25.0% | 3.1% | **21.9%** |
+> | finferlo | 5.9% | 2.5% | 3.4% |
+>
+> Nessun punto è azzerato da entrambi, e il gate di copertura non arriva mai sopra il 3.1%.
+
+> **Perché il pavimento sta nel profilo e non nel motore.** L'argomento per ammorbidire il
+> veto è buono: la CFI assegna **una** categoria per poligono, ma un poligono è un'unità di
+> gestione di ettari a composizione mista, e «questa cella è faggeta» vuol dire «il piano di
+> gestione la classifica faggeta», non «non c'è un abete». Sembrava una proprietà del
+> motore, e il primo tentativo è stato una costante globale a 0.12.
+>
+> Il Boyce l'ha falsificata in mezz'ora (intorno di 250 m, background 4000, stesso operatore):
+>
+> | pavimento | 0.00 | 0.05 | 0.08 | 0.12 | 0.20 |
+> |---|---:|---:|---:|---:|---:|
+> | ovolo | +0.433 | +0.509 | +0.582 | **+0.688** | +0.729 |
+> | porcino | **+0.681** | +0.566 | +0.402 | +0.245 | +0.018 |
+> | estatino | +0.672 | +0.657 | +0.647 | +0.636 | +0.596 |
+> | finferlo | +0.377 | +0.380 | +0.382 | +0.390 | +0.495 |
+>
+> Un valore unico avrebbe pagato l'ovolo col doppio del porcino. La ragione è che le due
+> specie hanno liste host di larghezza opposta: quella del porcino copre quasi tutto il
+> bosco dell'AOI, quindi le sue celle incompatibili lo sono davvero e alzarle aggiunge solo
+> rumore; quella dell'ovolo esclude per dottrina la faggeta, dove però cadono i suoi punti.
+> Quindi `host_floor` è un campo di profilo con default 0, cioè il veto secco di sempre —
+> «tutto è per singola specie» vale anche qui.
+>
+> Per l'ovolo si è provata anche l'ipotesi rivale, cioè che a sbagliare sia la lista e non
+> la forma del gate: mettere la faggeta nel profilo a peso 0.20 dà +0.602, meno del
+> pavimento a 0.12 (+0.688), e peggiora salendo di peso. Con 17 punti non è una sentenza, ma
+> l'ipotesi «il gate è troppo secco» regge meglio dell'ipotesi «manca un ospite».
+>
+> Quello che il pavimento **non** fa è resuscitare la chioma morta: il declassamento della
+> canopia moltiplica anche il pavimento, quindi una pecceta schiantata resta zero. E «qui
+> non c'è bosco» resta un veto secco, perché è un'affermazione diversa da «qui il bosco è
+> di un altro tipo».
+
+**Habitat — «è il posto giusto?».** Da WorldCover, che ha copertura completa. Il profilo
+dichiara **quali coperture contano e quanto**: `habitat: forest` è la forma breve di
+`{forest: 1.0}`, e il gate è la somma pesata delle frazioni di copertura nella finestra.
 Fuori dall'habitat → 0. È separato apposta dal «che tipo di bosco?»: la copertura è
 completa e affidabile, la composizione no.
+
+La forma a pesi serve alle specie di **ecotono**, e non è un vezzo: la mazza di tamburo,
+misurata sui suoi punti GBIF, sta per il 65.5% su pixel di *tree cover* e per il 30.8% su
+prato, mentre il fungo medio dell'AOI sta al 55.7% e 30.5%. Con `habitat: grassland` un
+terzo delle sue presenze note finirebbe sotto 0.1, con `habitat: forest` si vieterebbero i
+pascoli. Nessuna delle due è la specie: la specie è il margine fra le due.
 
 **La canopia entra qui, di traverso.** Per le classi di conifera il peso dell'host viene
 moltiplicato per `canopy_alive`: dove la chioma è morta — Vaia, bostrico — la pecceta
@@ -78,14 +131,43 @@ trapezoidali (`engine/membership.py`), quindi non c'è nessun salto artificiale 
 una faggeta a 1001 m con `max: 1000` non crolla a zero.
 
 I pesi di default (`static_scorer.DEFAULT_WEIGHTS`): quota 1.0, esposizione 0.8, pH 0.8,
-pendenza 0.5, drenaggio 0.5.
+pendenza 0.5, drenaggio 0.5. Più uno **opt-in**, `edge_density` con peso 0.8, che entra
+nella media solo se il profilo lo dichiara: un fattore neutro in più sposterebbe comunque
+la media geometrica, e i profili che tacciono devono conservare il punteggio di prima.
 
-> **Il drenaggio oggi non fa niente, e va detto.** Nessun provider produce la chiave
-> `drainage`: il valore è sempre «non misurato», che vale 0.5 per convenzione. Con peso 0.5
-> su 3.6 totali, ogni cella prende una decurtazione costante di circa il 9% che non
-> discrimina nulla. Non falsa le classifiche, perché è la stessa per tutti, ma i punteggi
-> assoluti sono depressi — e le soglie dell'interfaccia (0.3, 0.4) vanno lette sapendolo.
-> O si trova una fonte di drenaggio, o il fattore va tolto dai pesi.
+**Il bordo, per le specie che vivono sul margine.** `edge_density` è la quota di pixel
+della finestra che stanno sul confine bosco/prato. Non è una copertura, è una
+*configurazione*: è il primo fattore del modello che descrive la forma del paesaggio
+invece della sua composizione. Serve perché il margine è più stretto di un pixel WorldCover
+e quindi invisibile a qualunque frazione di copertura — la mazza di tamburo sta a 61 m
+mediani dal confine bosco/prato contro i 102 m del fungo medio dell'AOI, con densità di
+bordo 3.8 volte il fondo.
+
+**Il drenaggio ha smesso di essere una costante** (7 set 2026). Prima nessun provider
+produceva la chiave: ogni cella prendeva il 0.5 del «non misurato» e si portava via il ~9%
+del punteggio senza distinguere niente. Le due uscite erano «o si trova una fonte, o il
+fattore va tolto dai pesi», e la fonte era in casa: il DEM. `gis/make_tpi.py` precalcola,
+per ogni pixel, **dove sta fra il fondo e la cresta del suo intorno di 500 m**
+
+```
+r = (z − z_min) / (z_max − z_min)
+```
+
+ed è il TPI di Weiss normalizzato sul rilievo locale invece che su una soglia in metri,
+così la stessa regola vale in Lessinia e in Val di Fiemme. Crinale (r ≥ 0.75) → `dry`,
+versante → `well_drained`, piede e conca → `moist`, fondo piatto (r < 0.12 e pendenza
+< 3°) → `waterlogged`.
+
+> **Dove il terreno è piatto, la risposta è «non lo so», ed è scritta.** Sotto 20 m di
+> dislivello nell'intorno il pixel esce come non misurato e il fattore torna al 0.5 neutro
+> di prima. In pianura un DEM a 30 m non sa se un campo è drenato, e fingerlo sposterebbe
+> in silenzio mezzo Veneto: il tile della laguna ha infatti solo il **9.3%** di pixel con
+> rilievo sufficiente, contro il 95–99% dei tile alpini.
+
+Conseguenza da tenere presente: dove il drenaggio ora è misurato e favorevole, i punteggi
+**salgono** rispetto a prima, perché sparisce una decurtazione che era di tutti. Le soglie
+dell'interfaccia (0.3, 0.4) vanno rilette dopo la prima rigenerazione, e il confronto con
+qualunque numero anteriore al 7 set 2026 non è legittimo.
 
 ---
 
@@ -194,10 +276,19 @@ scaricano a mano dai rispettivi geoportali.
 |---|---|---|---|
 | **DEM** (quota, pendenza, esposizione) | Copernicus **GLO-30** | `fetch_dem.py`, AWS open data, no auth | 12 tile, 1 arcsec (~31 m), EPSG:4326 |
 | **Forestale** (host) | **CFI2020** — Carta Forestale d'Italia, MASAF | shapefile a mano, campo `Ct_CFI` | 138.512 poligoni (Bolzano 92.432 · Trento 20.603 · Veneto 25.477), UTM 33N |
-| **Gate habitat** | **ESA WorldCover** 10 m, v200 2021 | `fetch_worldcover.py`, AWS, no auth | 2 tile 3°×3°, ~9 m effettivi |
+| **Gate habitat** + `edge_density` | **ESA WorldCover** 10 m, v200 2021 | `fetch_worldcover.py`, AWS, no auth | 2 tile 3°×3°, ~9 m effettivi |
+| **Drenaggio** | il DEM stesso, posizione topografica relativa | `make_tpi.py` (precalcolo, una volta) | 12 tile; rilievo sufficiente nel 95–99% dei tile alpini, 9.3% in quello della laguna |
 | **Geologia → `soil_ph`** | CARG / substrato, tre servizi regionali | shapefile e gpkg locali (`fetch_geology*.py`) | Trento 121.443 poligoni / 411 formazioni · Bolzano 66.133 / 465 · Veneto 5.048 / 54 litologie |
 | **Canopia viva** | **Sentinel-2 L2A** via STAC Earth Search (COG su AWS) | `fetch_canopy.py`, composito mediano estivo | 140 tile da 0.2°; ne mancano 10, tutti fra laguna e mare aperto |
 | **AOI** | **ISTAT**, limiti delle unità amministrative 2025 (generalizzati) | `fetch_boundaries.py` | Bolzano 7.399 km² · Trento 6.207 km² · Veneto 18.354 km² |
+
+**Cosa c'è nell'AOI, secondo WorldCover** (1.30 M celle da ~200 m, ~32.000 km², in linea
+con i 31.960 km² ISTAT): bosco 43.2%, prato 25.0%, seminativo 17.5%, costruito 5.2%,
+nudo/rado 3.1%, acqua 2.9%, muschi e licheni 1.6%, neve 1.3%, zone umide 0.3%. Due cose da
+tenere: il **seminativo è un sesto dell'area** e fino al 7 set 2026 era indistinguibile
+dall'acqua, cioè inesistente per il modello; e la classe **arbusteto nell'AOI non esiste**
+— una cella su 1.3 milioni — quindi nessun piano futuro può contarci per mughete e
+arbusteti, che WorldCover mette altrove.
 
 **Il crosswalk forestale** (`config/crosswalk.yaml`) traduce i 20 codici `Ct_CFI` nelle 20
 classi host usate dai profili — pecceta, faggeta, mugheta, castagneto, querceto… È l'unico
@@ -402,8 +493,16 @@ farlo: quel numero non misura il modello, misura l'operatore.
 
 La lettura giusta è che **il modello discrimina meglio di quanto il pixel-per-pixel
 lasciasse credere**, e che l'estatino e l'ovolo non erano rotti: erano misurati con un
-metro più fine della precisione del dato. La validazione dovrebbe adottare l'intorno come
-default — è già fra le cose da fare, ora con dei numeri dietro.
+metro più fine della precisione del dato.
+
+**E il divario fra le due colonne è la cosa più informativa delle due.** L'intorno prende
+il *massimo* di un 3×3: se un gate azzera la cella giusta ma quella a 250 m è buona,
+l'intorno non se ne accorge, cioè il metro nuovo è cieco proprio ai gate troppo stretti,
+che sono il difetto che dovrebbe scoprire. Per questo `gis/validate.py` stampa **entrambe
+le colonne più il divario**, invece di sceglierne una: il divario è il *budget di errore
+spaziale* dei gate, cioè quanto il modello sbaglia di **posto** invece che di specie. Sul
+porcino valeva 0.195, sull'estatino 0.937 — e un divario così grande è un'ipotesi da
+verificare sui gate, non un dettaglio di misura.
 
 ### La trappola del Boyce: il «disponibile» decide il risultato
 
@@ -476,10 +575,13 @@ Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o n
   volumetrico assoluto fra celle con suoli diversi, ma l'umidità di ICON-D2 dipende dalla
   tessitura assegnata al box: 0.149 su un podsol non è la stessa siccità che su un'argilla.
   Va sostituito da un indice **relativo** alla storia della cella.
-- **Il drenaggio è un fattore costante** (vedi sopra).
-- **Dentro l'AOI, il 25–47% dei punti GBIF di presenza scora esattamente 0.** O l'host noto
-  è incompatibile, o il gate WorldCover azzera un punto con coordinate imprecise. Le due
-  cause vanno separate prima di dare la colpa ai pesi.
+- **Il drenaggio adesso c'è, ma è una proxy topografica**, non una misura del suolo: dice
+  dove l'acqua *tende* ad andare, non quanta ne trattiene quel terreno. Un fondo di conca
+  su ghiaia e uno su argilla escono uguali, e sotto i 20 m di rilievo il fattore tace del
+  tutto. Una carta pedologica lo batterebbe ovunque.
+- **Il pavimento dell'host è un numero scelto, non stimato.** 0.12 dice «un ordine di
+  grandezza sotto» perché zero diceva «impossibile» e la CFI non sa dirlo; il valore giusto
+  lo darebbe una verosimiglianza sui ritrovamenti, che non abbiamo.
 - **La geologia non copre uniformemente.** Il fallback a 2 km tappa i buchi quaternari, ma
   una cella su substrato dedotto non vale una su substrato affiorante, e oggi il punteggio
   non distingue i due casi.
