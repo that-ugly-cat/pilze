@@ -56,12 +56,14 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   sola, o una combinazione per le specie di ecotono — più `edge_density` (quota di confine
   bosco/prato) come fattore opt-in.
   Ritagliata sull'**AOI** (BZ+TN+VE): fuori i layer tematici non arrivano.
-  Validazione (Boyce vs GBIF, set di set 2026, dentro l'AOI, **intorno 250 m**): edulis
-  +0.69, cibarius +0.60, aestivalis +0.53, caesarea +0.31, pinophilus +0.21 (aereus +0.91
-  ma con 4 punti, cioè rumore). Sul **pixel esatto** gli stessi profili danno +0.38,
-  +0.21, −0.37, 0.00, +0.15: la differenza non è il modello, è che una segnalazione GBIF
-  non ha la precisione di una cella da 200 m — vedi `docs/COME-FUNZIONA.md`. Due valori
-  sono confrontabili solo a parità di background **e** di operatore.
+  Validazione (Boyce vs GBIF, 7 set 2026 sera, dentro l'AOI, background 5.000,
+  **intorno 250 m**): procera +0.98, muscaria +0.86, edulis +0.79, coprinus +0.76,
+  aestivalis +0.65, cibarius +0.65, caesarea +0.45, pinophilus +0.16 (aereus +0.85 ma con
+  4 punti, cioè rumore). Sul **pixel esatto** gli stessi profili danno numeri molto più
+  bassi, e il divario fra le due colonne è informativo di suo: dice quanto il modello
+  sbaglia di **posto** invece che di specie. Due valori sono confrontabili solo a parità di
+  background **e** di colonna — e nessun numero anteriore al 7 set 2026 lo è, perché il
+  drenaggio e i gate sono cambiati. Dettaglio in `docs/COME-FUNZIONA.md`.
 - **Dinamico (QUANDO):** meteo **ICON-D2 via Open-Meteo** (batching multi-località) → feature §4 →
   readiness; poller notturno + archivio SQLite (**backfill incrementale** + gap-detector). La fase
   della buttata per cella meteo: **in fieri / pronto / tardi** (da days_since_trigger vs lag_days).

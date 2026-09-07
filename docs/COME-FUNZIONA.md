@@ -5,6 +5,11 @@ leggere prima di toccare un profilo o discutere un numero: qui c'è il *perché*
 riferimento campo per campo dei profili sta subito dopo, e il piano di lavoro in
 `ROADMAP.md`.
 
+**Come è organizzata.** Prima cosa fa il tool oggi: i due assi, le fonti, che modello è e
+cosa sappiamo che non va. In fondo, sotto «Come ci siamo arrivati», le misure che hanno
+spostato il modello — servono a non ripetere gli errori e a sapere quali numeri non sono
+confrontabili con quali, ma non sono ciò che il tool è.
+
 Si legge da due parti, ed è lo stesso file: su GitHub come markdown, e nell'app alla
 pagina **Doc**, che lo rende a runtime. Due copie divergerebbero, e la copia sbagliata
 sarebbe sempre quella che qualcuno sta leggendo.
@@ -56,83 +61,9 @@ la mappa dava 0.74 all'Adamello occidentale, dove non esiste un dato forestale. 
 confine di validità di quella regola, e togliendolo si tolgono il 47% delle celle sopra 0.4.
 
 **Host — l'ospite micorrizico.** Dal profilo: un peso [0,1] per ciascuna delle 20 classi
-forestali. Ospite **sconosciuto** → 1.0, neutro. Ospite noto e incompatibile → 0, salvo
-che il profilo dichiari un `host_floor`. I saprotrofi saltano il gate: per loro l'albero
-non è il partner.
-
-> **Le due cause dello zero, separate** (7 set 2026). Il 25–47% delle presenze GBIF scorava
-> esattamente zero, e questa pagina diceva che le due cause possibili — ospite
-> incompatibile, oppure gate di copertura su coordinate imprecise — andavano separate prima
-> di dare la colpa ai pesi. Separate: **è l'ospite**, e non è nemmeno vicino.
->
-> | specie | presenze a zero | solo habitat | **solo host** |
-> |---|---:|---:|---:|
-> | ovolo | 47.1% | 0.0% | **47.1%** |
-> | porcino | 28.5% | 2.9% | **25.6%** |
-> | estatino | 25.0% | 3.1% | **21.9%** |
-> | finferlo | 5.9% | 2.5% | 3.4% |
->
-> Nessun punto è azzerato da entrambi, e il gate di copertura non arriva mai sopra il 3.1%.
-
-> **Perché il pavimento sta nel profilo e non nel motore.** L'argomento per ammorbidire il
-> veto è buono: la CFI assegna **una** categoria per poligono, ma un poligono è un'unità di
-> gestione di ettari a composizione mista, e «questa cella è faggeta» vuol dire «il piano di
-> gestione la classifica faggeta», non «non c'è un abete». Sembrava una proprietà del
-> motore, e il primo tentativo è stato una costante globale a 0.12.
->
-> Il Boyce l'ha falsificata in mezz'ora (intorno di 250 m, background 4000, stesso
-> operatore, profili del 7 set sera):
->
-> | pavimento | 0.00 | 0.12 | 0.30 |
-> |---|---:|---:|---:|
-> | ovolo | +0.433 | +0.688 | +0.756 |
-> | porcino | **+0.782** | +0.460 | +0.251 |
-> | estatino | +0.672 | +0.636 | +0.728 |
-> | finferlo | +0.652 | +0.663 | +0.821 |
->
-> Un valore unico avrebbe pagato l'ovolo col porcino, che va nella direzione opposta. La
-> ragione è che le due specie hanno liste host di larghezza opposta: quella del porcino
-> copre quasi tutto il bosco dell'AOI, quindi le sue celle incompatibili lo sono davvero e
-> alzarle aggiunge solo rumore; quella dell'ovolo esclude per dottrina la faggeta, dove però
-> cadono i suoi punti. Quindi `host_floor` è un campo di profilo con default 0, cioè il veto
-> secco di sempre — «tutto è per singola specie» vale anche qui.
->
-> Quello che il pavimento **non** fa è resuscitare la chioma morta: il declassamento della
-> canopia moltiplica anche il pavimento, quindi una pecceta schiantata resta zero. E «qui
-> non c'è bosco» resta un veto secco, perché è un'affermazione diversa da «qui il bosco è
-> di un altro tipo».
-
-> **Ma il valore, quel numero non lo sceglie.** La tabella qui sopra dice una cosa
-> qualitativa e binaria — un pavimento unico non regge — e sarebbe una tentazione leggerci
-> anche *quanto* deve valere per ciascuna specie. Non si può, e conviene sapere perché.
-> Spingendo il pavimento fino all'assurdo (0.90 significa «l'ospite sbagliato vale quanto
-> quello giusto», cioè un modello in cui la lista host non conta niente):
->
-> | specie | n | 0.00 | 0.12 | 0.30 | 0.50 | 0.70 | 0.90 |
-> |---|---:|---:|---:|---:|---:|---:|---:|
-> | finferlo | 428 | +0.652 | +0.663 | +0.821 | +0.851 | **+0.869** | +0.765 |
-> | porcino rosso | 70 | +0.171 | +0.171 | +0.216 | +0.326 | +0.448 | **+0.559** |
-> | porcino | 625 | **+0.782** | +0.460 | +0.251 | +0.321 | +0.564 | +0.669 |
-> | ovolo | 18 | +0.433 | +0.688 | +0.756 | **+0.797** | +0.685 | +0.499 |
->
-> Il finferlo premia un pavimento che quasi cancella il gate host; il porcino rosso ha
-> l'ottimo al bordo estremo dell'intervallo, che è il segno classico di una metrica che
-> guida al posto della biologia. E il porcino, con 625 punti, **scende fino a 0.30 e poi
-> risale**: una U. Una misura sensata del pavimento non può preferire sia 0.00 sia 0.90 a
-> quello che sta in mezzo.
->
-> Il meccanismo si legge nella distribuzione del fondo. Per l'ovolo, alzare il pavimento da
-> 0 a 0.12 porta gli zeri del background dal **19.8% al 5.8%**: il Boyce confronta due
-> frequenze su finestre mobili lungo la scala di idoneità, quindi cambiare quanti punti
-> stanno esattamente a zero cambia la scala su cui si misura. È la stessa trappola del
-> «disponibile» documentata più sotto, vista da un'altra faccia: lì decideva l'area, qui
-> decide la forma della distribuzione dei punteggi.
->
-> Conclusione operativa: `host_floor` resta 0 su tutti i profili finché non c'è un criterio
-> che non sia il Boyce — un'osservazione di campo che dica se l'ovolo in faggeta esiste
-> davvero, oppure la verosimiglianza della v4. Non è una lacuna di dati, è una lacuna del
-> metro, e chiuderla a occhio scegliendo il numero più alto della riga sarebbe esattamente
-> il modo di prendere per buono un artefatto.
+forestali. Ospite **sconosciuto** → 1.0, neutro. Ospite noto e incompatibile → 0, salvo che
+il profilo dichiari un `host_floor`, che di default è 0 e che nessun profilo dichiara — il
+perché sta in fondo. I saprotrofi saltano il gate: per loro l'albero non è il partner.
 
 **Habitat — «è il posto giusto?».** Da WorldCover, che ha copertura completa. Il profilo
 dichiara **quali coperture contano e quanto**: `habitat: forest` è la forma breve di
@@ -144,45 +75,8 @@ La forma a pesi serve alle specie di **ecotono**, e non è un vezzo: la mazza di
 misurata sui suoi punti GBIF, sta per il 65.5% su pixel di *tree cover* e per il 30.8% su
 prato, mentre il fungo medio dell'AOI sta al 55.7% e 30.5%. Con `habitat: grassland` un
 terzo delle sue presenze note finirebbe sotto 0.1, con `habitat: forest` si vieterebbero i
-pascoli. Nessuna delle due è la specie: la specie è il margine fra le due.
-
-> **Questo peso il Boyce sa sceglierlo, e si vede dalla forma della curva.** Dopo il caso
-> del pavimento host conviene diffidare di ogni parametro che il metro «preferisce», quindi
-> il peso del bosco è stato spinto fino all'assurdo, con un controllo in cui tutte e dieci
-> le classi valgono 1, cioè nessun gate:
->
-> | peso del bosco | 0.0 | 0.3 | 0.5 | 0.7 | 0.9 | 1.0 | **nessun gate** |
-> |---|---:|---:|---:|---:|---:|---:|---:|
-> | coprino | +0.450 | +0.715 | **+0.839** | +0.820 | +0.714 | +0.663 | +0.750 |
-> | mazza di tamburo | +0.865 | +0.962 | +0.977 | **+0.978** | +0.951 | +0.946 | +0.936 |
->
-> Due curve unimodali con il massimo **dentro** l'intervallo, e in entrambe togliere il gate
-> è peggio dell'ottimo. È il comportamento opposto a quello del pavimento, che saliva fino
-> al bordo: lì il metro premiava l'assenza di vincoli, qui premia una forma. Il peso 0.7
-> della mazza di tamburo era stato scelto sulle fonti prima di misurarlo, e l'ottimo
-> misurato è 0.7.
-
-> **Il caso del coprino: un profilo può essere sbagliato per anni senza che nessuno lo
-> sappia.** `coprinus_comatus` e `amanita_muscaria` vivevano solo nel volume del VPS, fuori
-> da git, quindi nessun `validate` li aveva mai visti. Alla prima misura (7 set 2026) la
-> muscaria stava benissimo, +0.855; il coprino era a **−0.155 sull'intorno e −0.770 sul
-> pixel** con 275 punti, l'unica specie sotto zero, cioè un modello che manda a cercare dove
-> il fungo non è.
->
-> Due cause, entrambe misurabili una alla volta. Il gate `grassland` secco metteva il **36%
-> delle sue presenze sotto 0.1**, perché il coprino è una specie di margini e terreni
-> disturbati: al pixel esatto i suoi punti stanno al 62% su bosco. E il tetto di quota a
-> 1200 m tagliava dentro il grosso delle segnalazioni, che hanno p90 a 1744 m. Corretto in
-> `{grassland 1.0, forest 0.5}` e `opt [200, 1700] max 2100`: **−0.155 → +0.808**.
->
-> Due parametri sono stati provati e **scartati**, ed è la parte istruttiva. Il `built_up`
-> sembrava ovvio — il profilo stesso dice «parchi, giardini, bordi stradali» — ma da 0.0 a
-> 1.0 il Boyce si muove di tre centesimi, cioè rumore; e dare peso al costruito rischia di
-> far imparare al modello dove abitano i micologi. Il pavimento di quota a 400 m valeva
-> +0.878 contro +0.808, ma contro lo **sforzo di osservazione** il coprino non ha nessuna
-> preferenza di quota (mediana 1139 contro 1126 degli Agaricales) e in pianura è segnalato
-> più del fungo medio (p10 17 m contro 536). Quei sette centesimi si compravano codificando
-> il bias di chi registra, e non valgono il prezzo.
+pascoli. Nessuna delle due è la specie: la specie è il margine fra le due. I pesi non sono
+scelti a occhio: si misurano, e come si misurano sta in fondo.
 
 **La canopia entra qui, di traverso.** Per le classi di conifera il peso dell'host viene
 moltiplicato per `canopy_alive`: dove la chioma è morta — Vaia, bostrico — la pecceta
@@ -209,11 +103,8 @@ e quindi invisibile a qualunque frazione di copertura — la mazza di tamburo st
 mediani dal confine bosco/prato contro i 102 m del fungo medio dell'AOI, con densità di
 bordo 3.8 volte il fondo.
 
-**Il drenaggio ha smesso di essere una costante** (7 set 2026). Prima nessun provider
-produceva la chiave: ogni cella prendeva il 0.5 del «non misurato» e si portava via il ~9%
-del punteggio senza distinguere niente. Le due uscite erano «o si trova una fonte, o il
-fattore va tolto dai pesi», e la fonte era in casa: il DEM. `gis/make_tpi.py` precalcola,
-per ogni pixel, **dove sta fra il fondo e la cresta del suo intorno di 500 m**
+**Il drenaggio viene dalla forma del terreno.** `gis/make_tpi.py` precalcola, per ogni
+pixel, **dove sta fra il fondo e la cresta del suo intorno di 500 m**
 
 ```
 r = (z − z_min) / (z_max − z_min)
@@ -230,10 +121,8 @@ versante → `well_drained`, piede e conca → `moist`, fondo piatto (r < 0.12 e
 > in silenzio mezzo Veneto: il tile della laguna ha infatti solo il **9.3%** di pixel con
 > rilievo sufficiente, contro il 95–99% dei tile alpini.
 
-Conseguenza da tenere presente: dove il drenaggio ora è misurato e favorevole, i punteggi
-**salgono** rispetto a prima, perché sparisce una decurtazione che era di tutti. Le soglie
-dell'interfaccia (0.3, 0.4) vanno rilette dopo la prima rigenerazione, e il confronto con
-qualunque numero anteriore al 7 set 2026 non è legittimo.
+Il layer è **additivo**: se `data/dem_tpi/` non c'è, la chiave non viene emessa e il
+fattore torna neutro, come per qualunque feature non misurata.
 
 ---
 
@@ -498,93 +387,31 @@ Si legge così: **+1** ordina perfettamente, **0** non fa meglio del caso, **neg
 peggio del caso — le presenze stanno dove il modello dice di no.
 
 Stato al 7 set 2026 a sera, dentro l'AOI, background di 5.000 punti, **col modello che sta
-in produzione** (gate a pesi, drenaggio misurato, le due preferenze di drenaggio corrette).
-`gis/validate.py` stampa entrambe le colonne perché nessuna delle due basta da sola: il
-pixel è il modo severo, l'intorno quello giusto per giudicare il modello, e il divario dice
-quanto il modello sbaglia di **posto**.
+in produzione**. `gis/validate.py` stampa entrambe le colonne perché nessuna delle due basta
+da sola: il pixel è il modo severo, l'intorno di 250 m è quello giusto per giudicare il
+modello (una segnalazione GBIF non ha la precisione di una cella da 200 m), e il **divario**
+fra le due dice quanto il modello sbaglia di *posto* invece che di specie.
 
 | specie | punti GBIF | pixel | intorno 250 m | divario |
 |---|---:|---:|---:|---:|
 | mazza di tamburo | 367 | +0.944 | **+0.980** | +0.036 |
+| ovolo malefico | 366 | +0.557 | **+0.855** | +0.298 |
 | porcino nero | 4 | +0.122 | +0.848 | +0.726 |
 | porcino | 379 | +0.608 | **+0.794** | +0.186 |
+| coprino chiomato | 275 | +0.474 | +0.762 | +0.288 |
 | estatino | 32 | −0.332 | +0.650 | +0.982 |
 | finferlo | 119 | +0.280 | +0.645 | +0.365 |
 | ovolo | 17 | −0.222 | +0.449 | +0.670 |
 | porcino rosso | 24 | +0.262 | +0.164 | −0.098 |
 
-Due letture che il numero da solo non dà. **Il porcino e il finferlo sono saliti per una
-riga di profilo**, non per un layer nuovo: +0.693 → +0.794 e +0.362 → +0.645 correggendo la
-preferenza di drenaggio, che era stata scritta quando il fattore non faceva niente. E **il
-divario della mazza di tamburo è quasi zero** (+0.036) non perché il modello sia preciso, ma
-perché non veta quasi mai: senza gate host i suoi bordi sono morbidi, e un modello che non
-mette confini netti non ha un errore di posto da misurare. Il suo +0.98 va letto insieme al
-fatto che mette il 43% dell'AOI sopra 0.4.
-
-### Il caso dell'estatino: quando è il metro a non reggere
-
-L'estatino è a −0.367 sul pixel esatto (**+0.564 sull'intorno di 250 m**), e la lettura
-ovvia — «il modello lo manda dove non è» — non regge all'esame. Il punteggio medio alle presenze (0.195) è *più alto* di quello del background
-(0.077): il modello non è anti-predittivo, è **non monotòno**, e il Boyce misura la
-monotonia. Le presenze si affollano a metà scala, mentre il vertice resta vuoto.
-
-Il perché sta in due cose, e nessuna delle due è un difetto dei parametri.
-
-**Le etichette sono contaminate.** Dei 32 punti GBIF, il 25% sta sopra i 1200 m e il 16%
-sopra i 1500, che è il massimo assoluto del profilo; cinque cadono in larici-cembreto, un
-bosco che per una specie termofila di latifoglie non ha senso. Gli stessi punti, letti col
-profilo del **porcino**, prendono 0.301 di media contro lo 0.195 del loro: somigliano a
-porcini più che a estatini. *B. reticulatus* si confonde con *B. edulis* facilmente, e in
-un archivio di segnalazioni non verificate quella confusione finisce nei dati.
-
-**E il vertice del modello non è campionato.** Il profilo dà il massimo ai castagneti e
-querceti collinari, ma nell'AOI il bosco sotto gli 800 m è il **28% del disponibile** e
-solo l'**8.3%** dei punti GBIF: sotto i 600 m, 19% del bosco contro 4.5% dei punti. In
-tutta l'area, sotto i 900 m in latifoglie termofile, ci sono **tredici** segnalazioni di
-tutte e sei le specie messe insieme. Nessuno raccoglie dati lì, quindi la fascia dove il
-modello si sbilancia di più non ha modo di essere confermata.
-
-La conclusione è che **per l'estatino il Boyce oggi non è una metrica utilizzabile**, e
-quel −0.367 non va letto come un giudizio sul profilo. Rifare i parametri per far salire
-quel numero significherebbe insegnare al modello a trovare porcini e chiamarli estatini.
-Serve un'osservazione di campo: un solo estatino loggato, con la sua data e il suo bosco,
-vale più di trentadue segnalazioni di provenienza ignota.
-
-### La seconda trappola: un punto GBIF non è un pixel
-
-Le celle sono da 200 m; una segnalazione GBIF ha coordinate che spesso valgono qualche
-centinaio di metri, quando non è il centro del paese o l'inizio del sentiero. Scorare il
-**pixel esatto** significa allora chiedere al modello di indovinare un posto dove il fungo
-non era.
-
-Si vede nei numeri: dal 25% al 47% delle presenze prende esattamente zero, a seconda della
-specie. Rifacendo la misura sul **massimo di un intorno di 250 m** — l'ordine di grandezza
-dell'incertezza — gli zeri quasi spariscono e il Boyce cambia di segno per due specie.
-L'operatore va applicato anche al background, altrimenti si gonfia soltanto il numeratore:
-
-| specie | zeri sul pixel | zeri sull'intorno | Boyce sul pixel | Boyce sull'intorno |
-|---|---|---|---|---|
-| porcino | 28% | 8% | +0.377 | **+0.572** |
-| finferlo | 6% | 2% | +0.209 | **+0.668** |
-| estatino | 25% | 6% | −0.373 | **+0.564** |
-| ovolo | 47% | 12% | −0.001 | **+0.362** |
-| porcino rosso | 4% | 0% | +0.146 | +0.202 |
-
-Applicando l'intorno alle sole presenze si arriva a +0.78/+0.95, ed è il modo sbagliato di
-farlo: quel numero non misura il modello, misura l'operatore.
-
-La lettura giusta è che **il modello discrimina meglio di quanto il pixel-per-pixel
-lasciasse credere**, e che l'estatino e l'ovolo non erano rotti: erano misurati con un
-metro più fine della precisione del dato.
-
-**E il divario fra le due colonne è la cosa più informativa delle due.** L'intorno prende
-il *massimo* di un 3×3: se un gate azzera la cella giusta ma quella a 250 m è buona,
-l'intorno non se ne accorge, cioè il metro nuovo è cieco proprio ai gate troppo stretti,
-che sono il difetto che dovrebbe scoprire. Per questo `gis/validate.py` stampa **entrambe
-le colonne più il divario**, invece di sceglierne una: il divario è il *budget di errore
-spaziale* dei gate, cioè quanto il modello sbaglia di **posto** invece che di specie. Sul
-porcino valeva 0.195, sull'estatino 0.937 — e un divario così grande è un'ipotesi da
-verificare sui gate, non un dettaglio di misura.
+Come si leggono. Un **divario grande** dice che i punti buoni stanno *accanto* alle celle
+premiate, non dentro: imprecisione delle coordinate, oppure gate troppo stretti. Un divario
+quasi nullo, come quello della mazza di tamburo, non è precisione — è che quel profilo non
+veta quasi mai, quindi non ha un errore di posto da fare, e il suo +0.98 va letto insieme al
+fatto che mette il 43% dell'AOI sopra 0.4. Le specie con **poche decine di punti** (porcino
+nero 4, ovolo 17, porcino rosso 24) danno numeri instabili: si guardano solo per il segno.
+E lo stesso profilo misurato su due campioni di background diversi si sposta di qualche
+centesimo, quindi differenze sotto ~0.05 non vogliono dire niente.
 
 ### La trappola del Boyce: il «disponibile» decide il risultato
 
@@ -676,3 +503,217 @@ Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o n
   sistemare nell'asse dinamico, e non è un parametro ma la forma della domanda.
 - **`RAIN_TRIGGER_MM = 10` è una costante di modulo**, non un campo di profilo: la
   definizione stessa di «innesco» non è tarabile per specie, mentre tutto il resto lo è.
+
+---
+
+## Come ci siamo arrivati
+
+Il registro delle misure che hanno spostato il modello. Non descrive cos'è il tool — quello
+sta sopra — ma perché è così, e soprattutto **quali numeri non sono confrontabili con
+quali**. Le due cose che si imparano leggendolo: che un parametro «preferito» dal Boyce va
+spinto fino all'assurdo prima di crederci, e che un profilo può essere sbagliato a lungo
+senza che nessuno se ne accorga, se nessuno lo misura.
+
+### Il drenaggio smette di essere una costante
+
+Fino al 7 set 2026 nessun provider produceva la chiave `drainage`: ogni cella prendeva il
+0.5 del «non misurato» e si portava via circa il 9% del punteggio senza distinguere niente.
+Non falsava le classifiche, perché era la stessa decurtazione per tutti, ma deprimeva i
+valori assoluti. Le due uscite scritte qui erano «o si trova una fonte, o il fattore va
+tolto dai pesi», e la fonte era in casa: il DEM stesso, letto come posizione topografica
+relativa.
+
+Due conseguenze da ricordare quando si guarda un numero vecchio. I punteggi **salgono**
+dove il drenaggio è misurato e favorevole, perché sparisce una decurtazione che era di
+tutti: sul campione la media cresce dell'8–11% e le celle sopra 0.4 passano dal 19.4% al
+20.5% per il porcino. E le preferenze `drainage` dei profili erano state scritte sapendo
+che il fattore non faceva niente: due su sei erano contraddette dal dato appena il fattore
+ha cominciato a contare (finferlo `moist` → `well_drained`, porcino `well_drained` →
+`moist`, che da soli valgono +0.28 e +0.10 di Boyce). **Nessun punteggio anteriore al 7 set
+2026 è confrontabile con uno di dopo.**
+
+### Le due cause dello zero, separate
+
+Il 25–47% delle presenze GBIF scorava
+esattamente zero, e questa pagina diceva che le due cause possibili — ospite
+incompatibile, oppure gate di copertura su coordinate imprecise — andavano separate prima
+di dare la colpa ai pesi. Separate: **è l'ospite**, e non è nemmeno vicino.
+
+| specie | presenze a zero | solo habitat | **solo host** |
+|---|---:|---:|---:|
+| ovolo | 47.1% | 0.0% | **47.1%** |
+| porcino | 28.5% | 2.9% | **25.6%** |
+| estatino | 25.0% | 3.1% | **21.9%** |
+| finferlo | 5.9% | 2.5% | 3.4% |
+
+Nessun punto è azzerato da entrambi, e il gate di copertura non arriva mai sopra il 3.1%.
+
+### Il pavimento dell'ospite: perché sta nel profilo
+
+L'argomento per ammorbidire il
+veto è buono: la CFI assegna **una** categoria per poligono, ma un poligono è un'unità di
+gestione di ettari a composizione mista, e «questa cella è faggeta» vuol dire «il piano di
+gestione la classifica faggeta», non «non c'è un abete». Sembrava una proprietà del
+motore, e il primo tentativo è stato una costante globale a 0.12.
+
+Il Boyce l'ha falsificata in mezz'ora (intorno di 250 m, background 4000, stesso
+operatore, profili del 7 set sera):
+
+| pavimento | 0.00 | 0.12 | 0.30 |
+|---|---:|---:|---:|
+| ovolo | +0.433 | +0.688 | +0.756 |
+| porcino | **+0.782** | +0.460 | +0.251 |
+| estatino | +0.672 | +0.636 | +0.728 |
+| finferlo | +0.652 | +0.663 | +0.821 |
+
+Un valore unico avrebbe pagato l'ovolo col porcino, che va nella direzione opposta. La
+ragione è che le due specie hanno liste host di larghezza opposta: quella del porcino
+copre quasi tutto il bosco dell'AOI, quindi le sue celle incompatibili lo sono davvero e
+alzarle aggiunge solo rumore; quella dell'ovolo esclude per dottrina la faggeta, dove però
+cadono i suoi punti. Quindi `host_floor` è un campo di profilo con default 0, cioè il veto
+secco di sempre — «tutto è per singola specie» vale anche qui.
+
+Quello che il pavimento **non** fa è resuscitare la chioma morta: il declassamento della
+canopia moltiplica anche il pavimento, quindi una pecceta schiantata resta zero. E «qui
+non c'è bosco» resta un veto secco, perché è un'affermazione diversa da «qui il bosco è
+di un altro tipo».
+
+### …e perché il suo valore non si sceglie col Boyce
+
+La tabella qui sopra dice una cosa
+qualitativa e binaria — un pavimento unico non regge — e sarebbe una tentazione leggerci
+anche *quanto* deve valere per ciascuna specie. Non si può, e conviene sapere perché.
+Spingendo il pavimento fino all'assurdo (0.90 significa «l'ospite sbagliato vale quanto
+quello giusto», cioè un modello in cui la lista host non conta niente):
+
+| specie | n | 0.00 | 0.12 | 0.30 | 0.50 | 0.70 | 0.90 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| finferlo | 428 | +0.652 | +0.663 | +0.821 | +0.851 | **+0.869** | +0.765 |
+| porcino rosso | 70 | +0.171 | +0.171 | +0.216 | +0.326 | +0.448 | **+0.559** |
+| porcino | 625 | **+0.782** | +0.460 | +0.251 | +0.321 | +0.564 | +0.669 |
+| ovolo | 18 | +0.433 | +0.688 | +0.756 | **+0.797** | +0.685 | +0.499 |
+
+Il finferlo premia un pavimento che quasi cancella il gate host; il porcino rosso ha
+l'ottimo al bordo estremo dell'intervallo, che è il segno classico di una metrica che
+guida al posto della biologia. E il porcino, con 625 punti, **scende fino a 0.30 e poi
+risale**: una U. Una misura sensata del pavimento non può preferire sia 0.00 sia 0.90 a
+quello che sta in mezzo.
+
+Il meccanismo si legge nella distribuzione del fondo. Per l'ovolo, alzare il pavimento da
+0 a 0.12 porta gli zeri del background dal **19.8% al 5.8%**: il Boyce confronta due
+frequenze su finestre mobili lungo la scala di idoneità, quindi cambiare quanti punti
+stanno esattamente a zero cambia la scala su cui si misura. È la stessa trappola del
+«disponibile» documentata più sotto, vista da un'altra faccia: lì decideva l'area, qui
+decide la forma della distribuzione dei punteggi.
+
+Conclusione operativa: `host_floor` resta 0 su tutti i profili finché non c'è un criterio
+che non sia il Boyce — un'osservazione di campo che dica se l'ovolo in faggeta esiste
+davvero, oppure la verosimiglianza della v4. Non è una lacuna di dati, è una lacuna del
+metro, e chiuderla a occhio scegliendo il numero più alto della riga sarebbe esattamente
+il modo di prendere per buono un artefatto.
+
+### Il gate a pesi, invece, regge il test dell'assurdo
+
+Dopo il caso
+del pavimento host conviene diffidare di ogni parametro che il metro «preferisce», quindi
+il peso del bosco è stato spinto fino all'assurdo, con un controllo in cui tutte e dieci
+le classi valgono 1, cioè nessun gate:
+
+| peso del bosco | 0.0 | 0.3 | 0.5 | 0.7 | 0.9 | 1.0 | **nessun gate** |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| coprino | +0.450 | +0.715 | **+0.839** | +0.820 | +0.714 | +0.663 | +0.750 |
+| mazza di tamburo | +0.865 | +0.962 | +0.977 | **+0.978** | +0.951 | +0.946 | +0.936 |
+
+Due curve unimodali con il massimo **dentro** l'intervallo, e in entrambe togliere il gate
+è peggio dell'ottimo. È il comportamento opposto a quello del pavimento, che saliva fino
+al bordo: lì il metro premiava l'assenza di vincoli, qui premia una forma. Il peso 0.7
+della mazza di tamburo era stato scelto sulle fonti prima di misurarlo, e l'ottimo
+misurato è 0.7.
+
+### Il coprino: anti-predittivo e invisibile
+
+`coprinus_comatus` e `amanita_muscaria` vivevano solo nel volume del VPS, fuori
+da git, quindi nessun `validate` li aveva mai visti. Alla prima misura (7 set 2026) la
+muscaria stava benissimo, +0.855; il coprino era a **−0.155 sull'intorno e −0.770 sul
+pixel** con 275 punti, l'unica specie sotto zero, cioè un modello che manda a cercare dove
+il fungo non è.
+
+Due cause, entrambe misurabili una alla volta. Il gate `grassland` secco metteva il **36%
+delle sue presenze sotto 0.1**, perché il coprino è una specie di margini e terreni
+disturbati: al pixel esatto i suoi punti stanno al 62% su bosco. E il tetto di quota a
+1200 m tagliava dentro il grosso delle segnalazioni, che hanno p90 a 1744 m. Corretto in
+`{grassland 1.0, forest 0.5}` e `opt [200, 1700] max 2100`: **−0.155 → +0.808**.
+
+Due parametri sono stati provati e **scartati**, ed è la parte istruttiva. Il `built_up`
+sembrava ovvio — il profilo stesso dice «parchi, giardini, bordi stradali» — ma da 0.0 a
+1.0 il Boyce si muove di tre centesimi, cioè rumore; e dare peso al costruito rischia di
+far imparare al modello dove abitano i micologi. Il pavimento di quota a 400 m valeva
++0.878 contro +0.808, ma contro lo **sforzo di osservazione** il coprino non ha nessuna
+preferenza di quota (mediana 1139 contro 1126 degli Agaricales) e in pianura è segnalato
+più del fungo medio (p10 17 m contro 536). Quei sette centesimi si compravano codificando
+il bias di chi registra, e non valgono il prezzo.
+
+### Il caso dell'estatino: quando è il metro a non reggere
+
+L'estatino è a −0.367 sul pixel esatto (**+0.564 sull'intorno di 250 m**), e la lettura
+ovvia — «il modello lo manda dove non è» — non regge all'esame. Il punteggio medio alle presenze (0.195) è *più alto* di quello del background
+(0.077): il modello non è anti-predittivo, è **non monotòno**, e il Boyce misura la
+monotonia. Le presenze si affollano a metà scala, mentre il vertice resta vuoto.
+
+Il perché sta in due cose, e nessuna delle due è un difetto dei parametri.
+
+**Le etichette sono contaminate.** Dei 32 punti GBIF, il 25% sta sopra i 1200 m e il 16%
+sopra i 1500, che è il massimo assoluto del profilo; cinque cadono in larici-cembreto, un
+bosco che per una specie termofila di latifoglie non ha senso. Gli stessi punti, letti col
+profilo del **porcino**, prendono 0.301 di media contro lo 0.195 del loro: somigliano a
+porcini più che a estatini. *B. reticulatus* si confonde con *B. edulis* facilmente, e in
+un archivio di segnalazioni non verificate quella confusione finisce nei dati.
+
+**E il vertice del modello non è campionato.** Il profilo dà il massimo ai castagneti e
+querceti collinari, ma nell'AOI il bosco sotto gli 800 m è il **28% del disponibile** e
+solo l'**8.3%** dei punti GBIF: sotto i 600 m, 19% del bosco contro 4.5% dei punti. In
+tutta l'area, sotto i 900 m in latifoglie termofile, ci sono **tredici** segnalazioni di
+tutte e sei le specie messe insieme. Nessuno raccoglie dati lì, quindi la fascia dove il
+modello si sbilancia di più non ha modo di essere confermata.
+
+La conclusione è che **per l'estatino il Boyce oggi non è una metrica utilizzabile**, e
+quel −0.367 non va letto come un giudizio sul profilo. Rifare i parametri per far salire
+quel numero significherebbe insegnare al modello a trovare porcini e chiamarli estatini.
+Serve un'osservazione di campo: un solo estatino loggato, con la sua data e il suo bosco,
+vale più di trentadue segnalazioni di provenienza ignota.
+
+### La seconda trappola: un punto GBIF non è un pixel
+
+Le celle sono da 200 m; una segnalazione GBIF ha coordinate che spesso valgono qualche
+centinaio di metri, quando non è il centro del paese o l'inizio del sentiero. Scorare il
+**pixel esatto** significa allora chiedere al modello di indovinare un posto dove il fungo
+non era.
+
+Si vede nei numeri: dal 25% al 47% delle presenze prende esattamente zero, a seconda della
+specie. Rifacendo la misura sul **massimo di un intorno di 250 m** — l'ordine di grandezza
+dell'incertezza — gli zeri quasi spariscono e il Boyce cambia di segno per due specie.
+L'operatore va applicato anche al background, altrimenti si gonfia soltanto il numeratore:
+
+| specie | zeri sul pixel | zeri sull'intorno | Boyce sul pixel | Boyce sull'intorno |
+|---|---|---|---|---|
+| porcino | 28% | 8% | +0.377 | **+0.572** |
+| finferlo | 6% | 2% | +0.209 | **+0.668** |
+| estatino | 25% | 6% | −0.373 | **+0.564** |
+| ovolo | 47% | 12% | −0.001 | **+0.362** |
+| porcino rosso | 4% | 0% | +0.146 | +0.202 |
+
+Applicando l'intorno alle sole presenze si arriva a +0.78/+0.95, ed è il modo sbagliato di
+farlo: quel numero non misura il modello, misura l'operatore.
+
+La lettura giusta è che **il modello discrimina meglio di quanto il pixel-per-pixel
+lasciasse credere**, e che l'estatino e l'ovolo non erano rotti: erano misurati con un
+metro più fine della precisione del dato.
+
+**E il divario fra le due colonne è la cosa più informativa delle due.** L'intorno prende
+il *massimo* di un 3×3: se un gate azzera la cella giusta ma quella a 250 m è buona,
+l'intorno non se ne accorge, cioè il metro nuovo è cieco proprio ai gate troppo stretti,
+che sono il difetto che dovrebbe scoprire. Per questo `gis/validate.py` stampa **entrambe
+le colonne più il divario**, invece di sceglierne una: il divario è il *budget di errore
+spaziale* dei gate, cioè quanto il modello sbaglia di **posto** invece che di specie. Sul
+porcino valeva 0.195, sull'estatino 0.937 — e un divario così grande è un'ipotesi da
+verificare sui gate, non un dettaglio di misura.

@@ -6,6 +6,7 @@
 </head><body class="login">
   <form class="card" method="post" action="/login">
     <h1>🍄 Pilze</h1>
+    <p class="hint tagline">A grandi poteri corrispondono grandi responsabilità.</p>
     {% if err %}<p class="err">{{ err }}</p>{% endif %}
     <input type="hidden" name="next" value="{{ next or '/' }}">
     <input name="username" placeholder="utente" autofocus required>

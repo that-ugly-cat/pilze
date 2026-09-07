@@ -46,6 +46,8 @@ a { color: #2f6f4f; }
 
 .login { display: flex; align-items: center; justify-content: center;
   min-height: 100%; background: #eef1ea; }
+/* sotto il titolo del login: il tono lo dà il corsivo, non il colore */
+.login .tagline { margin: -8px 0 16px; font-style: italic; text-align: center; }
 .admin { min-height: 100%; background: #eef1ea; }
 .admin .card { margin: 22px auto; }
 .topbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
