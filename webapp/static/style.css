@@ -32,12 +32,11 @@ label.slabel span { color: #a01d78; font-weight: 600; }
 .states { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #556; margin-top: 5px; }
 .states span { display: flex; align-items: center; gap: 4px; }
 .states i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
-.leaflet-tooltip.pronte-tip { font-size: 12px; padding: 3px 7px; }
-.leaflet-tooltip.pronte-tip b, .pronte-pop b { color: #0077cc; }
-.pronte-pop .leaflet-popup-content { font-size: 13px; margin: 9px 12px; line-height: 1.4; }
 .pilze-grid { position: absolute; pointer-events: none; }
-.leaflet-tooltip.grid-tip { font-size: 12px; padding: 2px 7px; }
+/* tooltip unico: fucsia per lo statico, blu per il dinamico, nello stesso riquadro */
+.leaflet-tooltip.grid-tip { font-size: 12px; padding: 3px 8px; line-height: 1.45; }
 .leaflet-tooltip.grid-tip b { color: #d61f96; }
+.leaflet-tooltip.grid-tip b.dyn { color: #0077cc; }
 #find-spots { width: 100%; margin: 6px 0 3px; }
 #find-hint { margin: 0 0 6px; }
 #status { font-size: 12px; color: #667; min-height: 18px; }
@@ -73,7 +72,6 @@ th, td { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
   line-height: 1.4; padding: 10px; border: 1px solid #ccd; border-radius: 6px; resize: vertical; }
 .hint { font-size: 12px; color: #667; }
 .hint.off { display: none; }
-#aoi-hint { margin: 2px 0 8px 20px; padding-left: 8px; border-left: 2px solid #d8d2c4; }
 .hint.ok { color: #2a7; } .hint.bad { color: #a33; }
 #regen-log { max-height: 220px; overflow: auto; background: #f6f7f4; border: 1px solid #e2e6dc;
   border-radius: 6px; padding: 8px; font-size: 11px; white-space: pre-wrap; margin: 8px 0 0; }
@@ -119,3 +117,23 @@ button.primary { width: 100%; padding: 12px; font-size: 15px; margin-top: 4px; }
   text-align: center; cursor: pointer;
   text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 5px #fff, 0 1px 2px rgba(0,0,0,.4); }
 .obs-pin.blank { font-size: 15px; opacity: .8; }   /* i vuoti non rubano l'occhio ai funghi */
+
+/* --- maniglia a metà del bordo del pannello: aprire/chiudere senza mirare in alto --- */
+#panel-edge { position: absolute; top: 50%; left: 260px; transform: translateY(-50%);
+  z-index: 1050; width: 22px; height: 62px; padding: 0; border: 1px solid #d7dcd2;
+  border-left: 0; border-radius: 0 8px 8px 0; background: #fff; color: #556;
+  box-shadow: 2px 1px 6px rgba(0,0,0,.18); cursor: pointer; transition: left .25s ease; }
+#panel-edge:hover { background: #f0f2ee; }
+#panel-edge::before { content: "‹"; font-size: 19px; line-height: 1; }
+body.nav-collapsed #panel-edge { left: 0; }
+body.nav-collapsed #panel-edge::before { content: "›"; }
+@media (max-width: 700px) {
+  #panel-edge { left: min(280px, 86vw); }
+  body.nav-collapsed #panel-edge { left: 0; }
+}
+
+/* --- footer del pannello: pill, che a mobile si vedono --- */
+.foot { display: flex; flex-wrap: wrap; gap: 6px; }
+.foot .pill { padding: 5px 11px; border-radius: 999px; background: #e6ebe2;
+  border: 1px solid #d0d8c8; color: #2f6f4f; font-size: 12px; text-decoration: none; }
+.foot .pill:hover { background: #dbe3d5; text-decoration: none; }

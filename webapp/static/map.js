@@ -6,10 +6,14 @@ L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
 
 // --- pannello collassabile + mobile ---------------------------------------- //
 map.zoomControl.setPosition('topright');            // libera il top-left per il toggle
-document.getElementById('panel-toggle').addEventListener('click', () => {
+function togglePanel() {
   document.body.classList.toggle('nav-collapsed');
   setTimeout(() => map.invalidateSize(), 260);      // ridisegna dopo la transizione
-});
+}
+// due modi di chiudere: il ☰ in alto e la maniglia a metà del bordo, che sul telefono
+// cade sotto il pollice invece che nell'angolo opposto.
+document.getElementById('panel-toggle').addEventListener('click', togglePanel);
+document.getElementById('panel-edge').addEventListener('click', togglePanel);
 if (window.innerWidth <= 700) document.body.classList.add('nav-collapsed');
 const isTouch = window.matchMedia('(hover: none)').matches;   // niente hover (telefono) → tap
 
@@ -141,24 +145,44 @@ opacity.addEventListener('input', () => {
   gridLayer.setOpacity(parseFloat(opacity.value));
 });
 
-// hover → tooltip col punteggio della cella
+// --- tooltip UNICO ------------------------------------------------------- //
+// Prima l'idoneità statica e la fase dinamica avevano ognuna il proprio tooltip, e dove
+// i due layer si sovrappongono ne comparivano due. Ora ne esiste uno solo, che raccoglie
+// quello che c'è sotto il puntatore. Su mobile lo apre il tap, con lo stesso contenuto:
+// prima il tap mostrava solo la fase, e l'idoneità del punto non si riusciva a leggere.
 const tip = L.tooltip({ className: 'grid-tip', direction: 'top', offset: [0, -2], opacity: 0.95 });
 function hideTip() { if (tip._map) map.removeLayer(tip); }
-map.on('mousemove', (ev) => {
-  if (!document.getElementById('l-static').checked) return hideTip();
-  const sc = gridLayer.scoreAt(ev.latlng);
-  if (sc == null) return hideTip();
-  tip.setLatLng(ev.latlng).setContent(`idoneità <b>${sc.toFixed(2)}</b>`);
+
+function describeAt(ll) {
+  const parts = [];
+  if (document.getElementById('l-static').checked) {
+    const sc = gridLayer.scoreAt(ll);
+    if (sc != null) parts.push(`idoneità <b>${sc.toFixed(2)}</b>`);
+  }
+  if (document.getElementById('l-pronte').checked) {
+    const p = pronteAt(ll);
+    if (p) {
+      let s = `<b class="dyn">${STATE_LABEL[p.state] || p.state}</b> · readiness ${p.readiness}`;
+      if (p.eta != null) s += ` · fra ~${p.eta} gg`;
+      if (p.days_past != null) s += ` · ~${p.days_past} gg fa`;
+      parts.push(s);
+    }
+  }
+  return parts.length ? parts.join('<br>') : null;
+}
+
+function showTipAt(ll) {
+  const html = describeAt(ll);
+  if (!html) return hideTip();
+  tip.setLatLng(ll).setContent(html);
   if (!tip._map) tip.addTo(map);
-});
-map.on('mouseout', hideTip);
-// mobile: al tap fuori da una cella pronte → mostra l'idoneità (o chiude tutto)
-if (isTouch) map.on('click', (ev) => {
-  const sc = document.getElementById('l-static').checked ? gridLayer.scoreAt(ev.latlng) : null;
-  if (sc == null) return hideTip();
-  tip.setLatLng(ev.latlng).setContent(`idoneità <b>${sc.toFixed(2)}</b>`);
-  if (!tip._map) tip.addTo(map);
-});
+}
+
+if (isTouch) map.on('click', (ev) => showTipAt(ev.latlng));
+else {
+  map.on('mousemove', (ev) => showTipAt(ev.latlng));
+  map.on('mouseout', hideTip);
+}
 
 // --- pronte oggi: fase della buttata per cella meteo (quadrati 2.2km) ------- //
 const STATE_COLOR = { in_fieri: '#8ecae6', pronto: '#0077cc', tardi: '#2a3a5c' };
@@ -170,6 +194,23 @@ map.createPane('topspots');
 map.getPane('topspots').style.zIndex = 620;               // spot oro sopra TUTTI i layer
 const topRenderer = L.canvas({ pane: 'topspots' });
 let pronteReq = 0;
+let pronteData = [];        // le celle in stato, per il tooltip unico
+
+// Cella sotto il punto: ray casting sull'anello del quadrato (in lon/lat è un
+// quadrilatero lievemente deformato, quindi il bounding box non basterebbe ai bordi).
+function pronteAt(ll) {
+  for (const f of pronteData) {
+    const ring = f.geometry.coordinates[0];
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if ((yi > ll.lat) !== (yj > ll.lat) &&
+          ll.lng < (xj - xi) * (ll.lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    if (inside) return f.properties;
+  }
+  return null;
+}
 
 function applyPronteOpacity() {
   map.getPane('pronte').style.opacity = document.getElementById('pronte-op').value;
@@ -180,26 +221,19 @@ async function loadPronte() {
   if (pronteLayer) { map.removeLayer(pronteLayer); pronteLayer = null; }
   const on = document.getElementById('l-pronte').checked;
   document.getElementById('pronte-ctl').classList.toggle('off', !on);
+  pronteData = [];
   if (!on) return;
   const gj = await (await fetch(`/api/pronte/${sel.value}`)).json();
   if (myReq !== pronteReq) return;            // superata da una chiamata più recente (no layer doppi)
+  pronteData = gj.features;
   if (!gj.features.length) { setStatus('nessuna cella in stato per questa specie'); return; }
   setStatus('');
   pronteLayer = L.geoJSON(gj, {
     pane: 'pronte', renderer: pronteRenderer,
-    style: f => ({ stroke: false, fillColor: STATE_COLOR[f.properties.state] || '#888', fillOpacity: 1 }),
-    onEachFeature: (f, layer) => {
-      const p = f.properties;
-      let html = `<b>${STATE_LABEL[p.state] || p.state}</b> · readiness ${p.readiness}`;
-      if (p.eta != null) html += `<br>pronto fra ~${p.eta} gg`;
-      if (p.days_past != null) html += `<br>buttata ~${p.days_past} gg fa`;
-      if (isTouch) {                                          // tap → popup nativo (singolo, si chiude da solo)
-        layer.bindPopup(html, { className: 'pronte-pop' });
-        layer.on('click', (e) => { L.DomEvent.stopPropagation(e); hideTip(); });
-      } else {
-        layer.bindTooltip(html, { sticky: true, className: 'pronte-tip' });   // hover desktop
-      }
-    }
+    // interactive:false — i quadrati non intercettano più il mouse: il tooltip unico
+    // legge la cella da pronteAt(), e i click arrivano alla mappa e ai pin sotto.
+    interactive: false,
+    style: f => ({ stroke: false, fillColor: STATE_COLOR[f.properties.state] || '#888', fillOpacity: 1 })
   }).addTo(map);
   applyPronteOpacity();
 }
@@ -240,7 +274,6 @@ map.getPane('aoi').style.zIndex = 410;                    // sopra il topo, sott
 
 async function loadAoi() {
   const on = document.getElementById('l-aoi').checked;
-  document.getElementById('aoi-hint').classList.toggle('off', !on);
   if (aoiLayer) { map.removeLayer(aoiLayer); aoiLayer = null; }
   if (!on) return;
   const gj = await (await fetch('/api/aoi')).json();

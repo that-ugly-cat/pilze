@@ -1,12 +1,17 @@
+{# Header unico di tutte le pagine fuori dalla mappa. Prima ogni pagina se lo scriveva
+   da sé e le voci cambiavano da una all'altra: da qui in poi si tocca solo questo file. #}
+{% set path = request.url.path %}
 <div class="topbar">
-  <span class="tb-brand">🍄 Pilze</span>
-  <a href="/log">Logga</a>
-  <a href="/me">Scheda</a>
-  <a href="/admin"{% if request.url.path == '/admin' %} class="active"{% endif %}>Utenti</a>
-  <a href="/admin/profiles"{% if request.url.path == '/admin/profiles' %} class="active"{% endif %}>Profili</a>
-  <a href="/admin/docs"{% if request.url.path == '/admin/docs' %} class="active"{% endif %}>Doc</a>
+  <a class="tb-brand" href="/">🍄 Pilze</a>
+  <a href="/log"{% if path == '/log' %} class="active"{% endif %}>Logga</a>
+  <a href="/me"{% if path.startswith('/me') %} class="active"{% endif %}>Scheda</a>
+  {% if user.is_admin %}
+    <a href="/admin"{% if path == '/admin' %} class="active"{% endif %}>Utenti</a>
+    <a href="/admin/profiles"{% if path == '/admin/profiles' %} class="active"{% endif %}>Profili</a>
+    <a href="/admin/docs"{% if path == '/admin/docs' %} class="active"{% endif %}>Doc</a>
+  {% endif %}
   <span class="tb-sp"></span>
   <a href="/">← mappa</a>
-  <span class="tb-user">{{ user.username }}</span>
+  <a class="tb-user" href="/me">{{ user.username }}</a>
   <a href="/logout">esci</a>
 </div>

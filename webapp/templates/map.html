@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head><body>
   <button id="panel-toggle" aria-label="menu" title="mostra/nascondi pannello">☰</button>
+  <button id="panel-edge" aria-label="mostra/nascondi pannello" title="mostra/nascondi pannello"></button>
   <div id="panel">
     <h1>🍄 Pilze</h1>
     <label>Specie
@@ -34,8 +35,6 @@
       </div>
       <label><input type="checkbox" id="l-pins" checked> Ritrovamenti</label>
       <label><input type="checkbox" id="l-aoi" checked> Confini area dati</label>
-      <p class="hint" id="aoi-hint">Bolzano, Trento, Veneto: dove arrivano forestale e geologia.
-        Fuori i layer tematici tacciono, quindi non si scora.</p>
     </fieldset>
     <a class="btnlink" href="/log">✍ Logga un'uscita</a>
     <button id="find-spots" type="button">★ Trova spot migliori</button>
@@ -43,7 +42,9 @@
     <div id="status"></div>
     <div class="spacer"></div>
     <div class="foot">
-      <a href="/me">{{ user.username }}</a>{% if user.is_admin %} · <a href="/admin">admin</a>{% endif %} · <a href="/logout">esci</a>
+      <a class="pill" href="/me">{{ user.username }}</a>
+      {% if user.is_admin %}<a class="pill" href="/admin">admin</a>{% endif %}
+      <a class="pill" href="/logout">esci</a>
     </div>
   </div>
   <div id="map"></div>

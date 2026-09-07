@@ -5,16 +5,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 </head><body class="admin">
-  <div class="topbar">
-    <span class="tb-brand">🍄 Pilze</span>
-    <a href="/log">Logga</a>
-    <a href="/me" class="active">Scheda</a>
-    {% if user.is_admin %}<a href="/admin">Utenti</a>{% endif %}
-    <span class="tb-sp"></span>
-    <a href="/">← mappa</a>
-    <span class="tb-user">{{ user.username }}</span>
-    <a href="/logout">esci</a>
-  </div>
+  {% include "_topbar.html" %}
 
   {% if msg %}<p class="hint ok banner">✅ {{ msg }}</p>{% endif %}
   {% if err %}<p class="hint bad banner">{{ err }}</p>{% endif %}
