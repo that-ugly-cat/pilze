@@ -74,3 +74,39 @@ def test_score_cells_prende_il_massimo():
     assert score_cells(prof, [[fuori, dentro, fuori]])[0] == score_cells(prof, [[dentro]])[0]
     assert score_cells(prof, [[fuori]])[0] < score_cells(prof, [[dentro]])[0]
     assert score_cells(prof, [[]]) == []          # punto fuori copertura: saltato
+
+
+def test_posizione_relativa_cresta_versante_conca():
+    """make_tpi: r ≈ 1 sul crinale, ≈ 0 nel fondo, in mezzo sul versante."""
+    from gis.make_tpi import relative_position
+    # profilo a V: quota che scende da 200 a 0 e risale, replicato su 40 righe
+    prof = np.concatenate([np.arange(200, -1, -10), np.arange(10, 201, 10)]).astype("float32")
+    z = np.tile(prof, (40, 1))
+    r, valid = relative_position(z, half_rows=5, half_cols=10, min_relief=20.0)
+    fondo = int(np.argmin(prof))
+    assert valid.all()
+    assert r[20, 0] > 0.9                     # spalla alta = cresta dell'intorno
+    assert r[20, fondo] < 0.1                 # fondo della V
+    assert 0.2 < r[20, fondo // 2] < 0.9      # mezza costa
+
+
+def test_posizione_relativa_dichiara_il_piatto():
+    """Sotto MIN_RELIEF_M il DEM non sa rispondere e la cella resta non misurata."""
+    from gis.make_tpi import relative_position
+    piano = np.full((30, 30), 12.0, dtype="float32")
+    piano += np.random.default_rng(0).normal(0, 0.5, piano.shape).astype("float32")
+    _, valid = relative_position(piano, half_rows=5, half_cols=5, min_relief=20.0)
+    assert not valid.any()
+
+
+def test_edge_density_conta_solo_i_confini_bosco_prato():
+    from gis.providers import WorldCoverProvider as W
+    tutto_bosco = np.full((10, 10), 10, dtype="uint8")
+    assert W._edge_pixels(tutto_bosco) == 0
+    meta = tutto_bosco.copy()
+    meta[:, 5:] = 30                          # un confine verticale netto
+    assert W._edge_pixels(meta) == 20         # 10 pixel per lato
+    # bosco e seminativo non fanno bordo: il margine che conta è bosco/prato
+    con_seminativo = tutto_bosco.copy()
+    con_seminativo[:, 5:] = 40
+    assert W._edge_pixels(con_seminativo) == 0

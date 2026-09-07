@@ -41,7 +41,11 @@ def seed_profiles(src: Path | str = DEFAULT_PROFILES_DIR,
     return n
 
 VALID_TROPHIC = {"mycorrhizal", "saprotrophic", "facultative"}
-VALID_HABITAT = {"forest", "grassland"}   # quale gate di copertura (WorldCover) applica
+# Classi di copertura WorldCover usabili come gate. `habitat` è una di queste (peso 1)
+# oppure un dizionario {classe: peso} per le specie di ecotono, che stanno sul confine
+# fra due coperture e con una classe sola perderebbero metà dell'habitat.
+VALID_HABITAT = {"forest", "grassland", "cropland", "shrubland", "built_up", "bare",
+                 "moss_lichen", "wetland", "water", "snow_ice"}
 # Classi host = le 20 categorie forestali CFI2020 (nomi leggibili). Devono restare
 # allineate a target_classes in config/crosswalk.yaml.
 CROSSWALK_CLASSES = {
@@ -58,9 +62,10 @@ class SpeciesProfile:
     id: str
     common_name: str
     trophic_mode: str
-    habitat: str = "forest"          # forest | grassland — gate di copertura (WorldCover)
+    habitat: str | dict = "forest"   # classe di copertura, o {classe: peso} (WorldCover)
     similar_to: list[str] = field(default_factory=list)
     host_genera: dict[str, float] = field(default_factory=dict)
+    host_floor: float = 0.0          # quanto vale l'ospite SBAGLIATO (0 = veto secco)
     static_envelope: dict = field(default_factory=dict)
     extra_static_layers: list[str] = field(default_factory=list)
     phenology_months: list[int] = field(default_factory=list)
@@ -80,8 +85,16 @@ class SpeciesProfile:
         errs: list[str] = []
         if self.trophic_mode not in VALID_TROPHIC:
             errs.append(f"{self.id}: trophic_mode '{self.trophic_mode}' non valido")
-        if self.habitat not in VALID_HABITAT:
-            errs.append(f"{self.id}: habitat '{self.habitat}' non valido (forest | grassland)")
+        if not isinstance(self.habitat, (str, dict)):
+            errs.append(f"{self.id}: habitat dev'essere una classe o un dizionario {{classe: peso}}")
+        else:
+            weights = self.habitat if isinstance(self.habitat, dict) else {self.habitat: 1.0}
+            for cls, w in weights.items():
+                if cls not in VALID_HABITAT:
+                    errs.append(f"{self.id}: habitat '{cls}' non è una classe di copertura "
+                                f"({' | '.join(sorted(VALID_HABITAT))})")
+                elif not isinstance(w, (int, float)) or not 0.0 <= float(w) <= 1.0:
+                    errs.append(f"{self.id}: peso habitat '{cls}' = {w!r} non è un numero in [0,1]")
         for g in self.host_genera:
             if g not in CROSSWALK_CLASSES:
                 errs.append(f"{self.id}: host '{g}' non è una classe del crosswalk (§3.3)")
@@ -90,6 +103,11 @@ class SpeciesProfile:
                 errs.append(f"{self.id}: mese fenologia {m} fuori range")
         if self.is_mycorrhizal and not self.host_genera:
             errs.append(f"{self.id}: micorrizico senza host_genera")
+        if not 0.0 <= self.host_floor < 1.0:
+            errs.append(f"{self.id}: host_floor {self.host_floor} fuori da [0,1)")
+        if self.host_floor and self.host_floor >= min(self.host_genera.values(), default=1.0):
+            errs.append(f"{self.id}: host_floor {self.host_floor} ≥ del peso host più basso: "
+                        f"l'ospite sbagliato varrebbe quanto uno buono")
 
         # Coerenza fra finestra di pioggia e lag: la finestra deve contenere la pioggia
         # che ha innescato la buttata che si sta valutando. Se `rain_window_days` non
@@ -105,6 +123,14 @@ class SpeciesProfile:
         return errs
 
 
+def _as_float(v, default: float = 0.0) -> float:
+    """Numero o default: il parsing di un profilo non deve morire su un campo scritto male."""
+    try:
+        return float(v or default)
+    except (TypeError, ValueError):
+        return default
+
+
 def _from_dict(d: dict) -> SpeciesProfile:
     s = d["species"] if "species" in d else d
     return SpeciesProfile(
@@ -114,6 +140,7 @@ def _from_dict(d: dict) -> SpeciesProfile:
         habitat=s.get("habitat", "forest"),
         similar_to=s.get("similar_to", []) or [],
         host_genera=s.get("host_genera", {}) or {},
+        host_floor=_as_float(s.get("host_floor")),
         static_envelope=s.get("static_envelope", {}) or {},
         extra_static_layers=s.get("extra_static_layers", []) or [],
         phenology_months=s.get("phenology_months", []) or [],

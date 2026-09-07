@@ -5,8 +5,10 @@ from engine import load_profiles, predict, readiness, species_buttons, static_su
 REG = load_profiles()
 
 
-def test_carica_sei_profili_validi():
-    assert len(REG) == 6
+def test_carica_i_profili_versionati_e_sono_validi():
+    sei_di_bosco = {"boletus_edulis", "boletus_aereus", "boletus_aestivalis",
+                    "boletus_pinophilus", "cantharellus_cibarius", "amanita_caesarea"}
+    assert sei_di_bosco <= set(REG)
     for p in REG.values():
         assert p.validate() == [], p.validate()
 
@@ -14,7 +16,7 @@ def test_carica_sei_profili_validi():
 def test_species_buttons_ordinati_per_nome():
     names = [name for _, name in species_buttons(REG)]
     assert names == sorted(names)
-    assert len(names) == 6
+    assert len(names) == len(REG)
 
 
 def test_host_gate_azzera_senza_ospite():
@@ -23,7 +25,7 @@ def test_host_gate_azzera_senza_ospite():
              "soil_ph": "acidic", "drainage": "well_drained", "slope_deg": 15}
     senza = {**buona, "host_class": "faggeta"}      # aereus non ha faggio → host 0
     assert static_suitability(aereus, buona) > 0.6
-    assert static_suitability(aereus, senza) == 0.0
+    assert static_suitability(aereus, senza) == 0.0     # host_floor di default = 0
 
 
 def test_host_sconosciuto_e_neutro_non_gate():
@@ -34,6 +36,42 @@ def test_host_sconosciuto_e_neutro_non_gate():
     assert static_suitability(aereus, solo_dem) > 0.5
     # ma host noto-e-incompatibile resta gate a 0
     assert static_suitability(aereus, {**solo_dem, "host_class": "faggeta"}) == 0.0
+
+
+def test_host_floor_per_specie():
+    """`host_floor` declassa invece di vietare — ma è una scelta PER SPECIE, non del motore.
+
+    Misurato col Boyce: all'ovolo un pavimento a 0.12 vale +0.25, al porcino ne costa 0.44.
+    Un valore unico avrebbe pagato l'uno col doppio dell'altro, quindi sta nel profilo.
+    """
+    from copy import deepcopy
+
+    from engine.static_scorer import host_membership
+    aereus = REG["boletus_aereus"]
+    cella = {"host_class": "faggeta", "elevation_m": 400, "aspect": "warm",
+             "soil_ph": "acidic", "drainage": "well_drained", "slope_deg": 15}
+    assert host_membership(aereus, cella) == 0.0            # default: veto secco
+    con_pavimento = deepcopy(aereus)
+    con_pavimento.host_floor = 0.12
+    assert host_membership(con_pavimento, cella) == 0.12
+    buona = {**cella, "host_class": "querceto"}
+    assert static_suitability(con_pavimento, cella) < static_suitability(con_pavimento, buona) / 5
+    # un pavimento che arriva al peso host più basso è un errore: l'ospite sbagliato
+    # varrebbe quanto uno buono
+    con_pavimento.host_floor = 0.9
+    assert any("host_floor" in e for e in con_pavimento.validate())
+
+
+def test_pavimento_host_non_resuscita_la_chioma_morta():
+    # il pavimento dice "la categoria è una generalizzazione", non "c'è comunque un albero":
+    # dove la chioma è morta (Vaia/bostrico) la conifera resta un non-ospite.
+    from copy import deepcopy
+
+    from engine.static_scorer import host_membership
+    edulis = deepcopy(REG["boletus_edulis"])
+    edulis.host_floor = 0.12
+    assert host_membership(edulis, {"host_class": "pecceta", "canopy_alive": 1.0}) == 1.0
+    assert host_membership(edulis, {"host_class": "pecceta", "canopy_alive": 0.0}) == 0.0
 
 
 def test_elevation_fuori_range_abbassa():
@@ -102,6 +140,59 @@ def test_habitat_gate_prato_vs_bosco():
           "drainage": "well_drained", "slope_deg": 15}
     assert static_suitability(edulis, {**hb, "forest_fraction": 0.9}) > 0.0
     assert static_suitability(edulis, {**hb, "forest_fraction": 0.0}) == 0.0
+
+
+def test_habitat_a_pesi_per_le_specie_di_ecotono():
+    from engine.profiles import _from_dict
+    from engine.static_scorer import habitat_gate
+    # una specie di margine: né bosco né prato, entrambi con un peso
+    ecotono = _from_dict({"species": {
+        "id": "test_margine", "common_name": "margine", "trophic_mode": "saprotrophic",
+        "habitat": {"grassland": 1.0, "forest": 0.7, "cropland": 0.2},
+        "static_envelope": {"elevation_m": {"opt": [100, 1000]}}}})
+    assert ecotono.validate() == []
+    bosco = {"forest_fraction": 1.0, "grassland_fraction": 0.0, "cropland_fraction": 0.0}
+    prato = {"forest_fraction": 0.0, "grassland_fraction": 1.0, "cropland_fraction": 0.0}
+    misto = {"forest_fraction": 0.5, "grassland_fraction": 0.5, "cropland_fraction": 0.0}
+    assert abs(habitat_gate(ecotono, bosco) - 0.7) < 1e-9
+    assert abs(habitat_gate(ecotono, prato) - 1.0) < 1e-9
+    assert abs(habitat_gate(ecotono, misto) - 0.85) < 1e-9
+    # la somma pesata non può sfondare 1, e senza frazioni non c'è gate (unknown ≠ absent)
+    tutto = {"forest_fraction": 1.0, "grassland_fraction": 1.0, "cropland_fraction": 1.0}
+    assert habitat_gate(ecotono, tutto) == 1.0
+    assert habitat_gate(ecotono, {"elevation_m": 500}) == 1.0
+    # la forma a stringa resta identica a un dizionario con un peso solo
+    prato_puro = _from_dict({"species": {"id": "t", "common_name": "t",
+                                         "trophic_mode": "saprotrophic", "habitat": "grassland"}})
+    assert habitat_gate(prato_puro, misto) == 0.5
+
+
+def test_habitat_non_valido_segnalato():
+    from engine.profiles import _from_dict
+    male = _from_dict({"species": {"id": "t", "common_name": "t", "trophic_mode": "saprotrophic",
+                                   "habitat": {"prateria": 1.0, "forest": 3.0}}})
+    errs = male.validate()
+    assert any("prateria" in e for e in errs)
+    assert any("3.0" in e for e in errs)
+
+
+def test_edge_density_e_opt_in():
+    """Il fattore di bordo entra solo se il profilo lo dichiara: chi tace non cambia voto."""
+    from engine.profiles import _from_dict
+    base = {"id": "t", "common_name": "t", "trophic_mode": "saprotrophic",
+            "habitat": "grassland", "static_envelope": {"elevation_m": {"opt": [100, 1000]}}}
+    muto = _from_dict({"species": base})
+    parla = _from_dict({"species": {**base, "static_envelope": {
+        "elevation_m": {"opt": [100, 1000]}, "edge_density": {"opt": [0.05, 0.30]}}}})
+    cella = {"elevation_m": 500, "grassland_fraction": 1.0}
+    # senza la chiave nella cella il fattore è neutro (feature non misurata)
+    assert static_suitability(parla, cella) == static_suitability(muto, cella)
+    molto = static_suitability(parla, {**cella, "edge_density": 0.15})
+    poco = static_suitability(parla, {**cella, "edge_density": 0.0})
+    assert molto > poco
+    # e il profilo muto resta indifferente al bordo: nessuno spostamento silenzioso
+    assert static_suitability(muto, {**cella, "edge_density": 0.0}) == \
+        static_suitability(muto, {**cella, "edge_density": 0.15})
 
 
 def test_combiner_e_prodotto():

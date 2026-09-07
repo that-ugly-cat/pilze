@@ -17,6 +17,7 @@ import yaml
 from .suitability import FeatureProvider
 
 DEM_DIR = Path(__file__).resolve().parent.parent / "data" / "dem"
+TPI_DIR = Path(__file__).resolve().parent.parent / "data" / "dem_tpi"
 FOREST_DIR = Path(__file__).resolve().parent.parent / "data" / "forest"
 SOIL_PATH = Path(__file__).resolve().parent.parent / "data" / "soil" / "phh2o_0-5cm.tif"
 CROSSWALK_PATH = Path(__file__).resolve().parent.parent / "config" / "crosswalk.yaml"
@@ -71,21 +72,37 @@ class AOIProvider(FeatureProvider):
 
 
 class DEMProvider(FeatureProvider):
-    """Quota + pendenza + esposizione da un mosaico di tile Copernicus GLO-30.
+    """Quota + pendenza + esposizione + drenaggio da un mosaico di tile Copernicus GLO-30.
 
     Legge una finestra 3×3 attorno al punto e applica il metodo di Horn (pendenza
     ed esposizione). CRS dei tile: EPSG:4326 → converte i passi in metri alla latitudine.
     Senza quota/pendenza i fattori ambientali resterebbero neutri e la cella verrebbe
     sovrastimata → `is_required`, come l'AOI.
+
+    Il **drenaggio** viene dalla posizione topografica relativa precalcolata da
+    `gis.make_tpi` (r = dove sta il pixel fra il fondo e la cresta del suo intorno di
+    500 m): crinale → l'acqua se ne va, conca piatta → ci resta. Se `data/dem_tpi/` non
+    c'è, la chiave non viene emessa e il fattore resta il 0.5 neutro di sempre: il layer
+    è additivo, non obbligatorio.
     """
 
     is_required = True
 
-    def __init__(self, dem_dir: Path | str = DEM_DIR):
+    # Soglie su r ∈ [0,1]. Il versante regolare sta attorno a 0.5 e prende `well_drained`;
+    # gli estremi sono il crinale e il fondo. `waterlogged` chiede anche il piano, perché
+    # un fondo di forra ripida drena comunque.
+    DRAINAGE_DRY = 0.75
+    DRAINAGE_WELL = 0.30
+    DRAINAGE_MOIST = 0.12
+    DRAINAGE_FLAT_DEG = 3.0
+
+    def __init__(self, dem_dir: Path | str = DEM_DIR, tpi_dir: Path | str = TPI_DIR):
         self.datasets = [rasterio.open(p) for p in sorted(Path(dem_dir).glob("*.tif"))]
         if not self.datasets:
             raise FileNotFoundError(
                 f"Nessun tile DEM in {dem_dir}. Esegui: python -m gis.fetch_dem")
+        # stessi nomi, stessa griglia: l'indice (row, col) del DEM vale anche qui
+        self.tpi = {p.name: rasterio.open(p) for p in sorted(Path(tpi_dir).glob("*.tif"))}
 
     def _dataset_for(self, lon: float, lat: float):
         for ds in self.datasets:
@@ -121,14 +138,36 @@ class DEMProvider(FeatureProvider):
         # direzione di affaccio (downhill) = -gradiente; bearing orario da nord
         aspect_deg = math.degrees(math.atan2(-dzdx, -dzdy)) % 360.0
 
-        return {
+        out = {
             "elevation_m": round(elev, 1),
             "slope_deg": round(slope_deg, 1),
             "aspect": _aspect_to_class(aspect_deg, slope_deg),
         }
+        drainage = self._drainage(ds, row, col, slope_deg)
+        if drainage is not None:
+            out["drainage"] = drainage
+        return out
+
+    def _drainage(self, ds, row: int, col: int, slope_deg: float) -> str | None:
+        """Classe di drenaggio dalla posizione topografica relativa. None = non misurata."""
+        tpi = self.tpi.get(Path(ds.name).name)
+        if tpi is None:
+            return None
+        win = rasterio.windows.Window(col, row, 1, 1)
+        raw = int(tpi.read(1, window=win)[0, 0])
+        if raw == tpi.nodata:                 # piatto: il DEM non sa rispondere
+            return None
+        r = raw / 1000.0
+        if r >= self.DRAINAGE_DRY:
+            return "dry"
+        if r >= self.DRAINAGE_WELL:
+            return "well_drained"
+        if r >= self.DRAINAGE_MOIST or slope_deg >= self.DRAINAGE_FLAT_DEG:
+            return "moist"
+        return "waterlogged"
 
     def close(self):
-        for ds in self.datasets:
+        for ds in list(self.datasets) + list(self.tpi.values()):
             ds.close()
 
 
@@ -417,42 +456,76 @@ class CanopyProvider(FeatureProvider):
 
 
 class WorldCoverProvider(FeatureProvider):
-    """Frazioni di copertura da ESA WorldCover 10 m (spec §3.1): forest_fraction (tree cover,
-    classe 10) e grassland_fraction (prato, classe 30).
+    """Frazioni di copertura da ESA WorldCover 10 m (spec §3.1) + densità di bordo.
 
-    Gate "è l'habitat giusto?" a copertura COMPLETA: legge una finestra ~500 m attorno al
-    punto e calcola le frazioni di pixel per classe. In static_suitability una delle due
-    (secondo profile.habitat) moltiplica
-    il punteggio → fuori-bosco 0, dentro-bosco pieno, con gradazione. Risolve l'over-
-    predict dove i layer genere (TN parziale) lasciano host-sconosciuto, senza bucare il TN.
-    Windowed read (memory-safe: i tile sono ~1 Gpx, non si caricano interi).
+    Gate "è l'habitat giusto?" a copertura COMPLETA: legge una finestra attorno al punto e
+    calcola la frazione di pixel di OGNI classe. In static_suitability la combinazione
+    scelta da `profile.habitat` moltiplica il punteggio → fuori dall'habitat 0, dentro
+    pieno, con gradazione. Risolve l'over-predict dove i layer genere lasciano
+    host-sconosciuto. Windowed read (i tile sono ~1 Gpx, non si caricano interi).
+
+    Due cose cambiate il 7 set 2026:
+
+    - **La finestra è in METRI.** Era 0.0025° per lato, che a 46°N vale 555 m in latitudine
+      e 385 in longitudine: un rettangolo, per un fatto di gradi e non di ecologia.
+    - **`edge_density`**: la quota di pixel della finestra che stanno sul confine
+      bosco/prato. Serve alle specie di ecotono, il cui habitat è il margine e non nessuna
+      delle due coperture, e che oggi nessun altro layer descrive. Misurata sui punti GBIF
+      dentro l'AOI, la mazza di tamburo sta a 61 m mediani dal confine contro i 102 del
+      fungo medio, con densità di bordo 3.8×.
+
+    Nota sulla grana: la finestra resta ~25 ha, contro i 4 della cella da 200 m, quindi il
+    gate ha una risoluzione effettiva di mezzo chilometro. Costa poco al bosco (il 3% della
+    sua area sta in chiazze sotto i 21 ha) e molto al prato (il 28%). `HALF_M` è il posto
+    dove si prova a stringerla, quando si vorrà misurarne l'effetto.
     """
 
     WC_DIR = Path(__file__).resolve().parent.parent / "data" / "worldcover"
-    HALF_DEG = 0.0025             # semi-lato finestra ~250–280 m → cella ~500 m
+    HALF_M = 250.0                # semi-lato della finestra, in metri → cella 500 × 500 m
+    # codice WorldCover → nome della classe nei profili (`forest` = nome storico della 10)
+    CLASSES = {10: "forest", 20: "shrubland", 30: "grassland", 40: "cropland",
+               50: "built_up", 60: "bare", 70: "snow_ice", 80: "water",
+               90: "wetland", 100: "moss_lichen"}
 
-    def __init__(self, wc_dir: Path | str = WC_DIR):
+    def __init__(self, wc_dir: Path | str = WC_DIR, half_m: float | None = None):
         tifs = sorted(Path(wc_dir).glob("*.tif"))
         if not tifs:
             raise FileNotFoundError(
                 f"Nessun tile WorldCover in {wc_dir}. Esegui: python -m gis.fetch_worldcover")
         self.datasets = [rasterio.open(p) for p in tifs]
+        self.half_m = float(half_m if half_m is not None else self.HALF_M)
+
+    @staticmethod
+    def _edge_pixels(arr: "np.ndarray") -> int:
+        """Pixel sul confine bosco/prato (adiacenza a 4, contati da entrambi i lati)."""
+        t, g = (arr == 10), (arr == 30)
+        if not t.any() or not g.any():
+            return 0
+        edge = np.zeros(arr.shape, dtype=bool)
+        for a, b in ((t, g), (g, t)):
+            edge[:-1, :] |= a[:-1, :] & b[1:, :]
+            edge[1:, :] |= a[1:, :] & b[:-1, :]
+            edge[:, :-1] |= a[:, :-1] & b[:, 1:]
+            edge[:, 1:] |= a[:, 1:] & b[:, :-1]
+        return int(edge.sum())
 
     def features(self, lat: float, lon: float) -> dict | None:
         from rasterio.windows import from_bounds
-        h = self.HALF_DEG
+        dlat = self.half_m / 110_540.0
+        dlon = self.half_m / (111_320.0 * math.cos(math.radians(lat)))
         for ds in self.datasets:
             b = ds.bounds
             if not (b.left <= lon < b.right and b.bottom <= lat < b.top):
                 continue
-            win = from_bounds(lon - h, lat - h, lon + h, lat + h, ds.transform)
+            win = from_bounds(lon - dlon, lat - dlat, lon + dlon, lat + dlat, ds.transform)
             arr = ds.read(1, window=win, boundless=True, fill_value=0)
-            valid = arr != 0                     # 0 = nodata
-            nvalid = int(valid.sum())
+            nvalid = int((arr != 0).sum())      # 0 = nodata
             if nvalid == 0:
                 return None
-            return {"forest_fraction": float((arr == 10).sum()) / nvalid,        # classe 10 = tree cover
-                    "grassland_fraction": float((arr == 30).sum()) / nvalid}     # classe 30 = grassland
+            out = {f"{name}_fraction": float((arr == code).sum()) / nvalid
+                   for code, name in self.CLASSES.items()}
+            out["edge_density"] = self._edge_pixels(arr) / nvalid
+            return out
         return None
 
 
