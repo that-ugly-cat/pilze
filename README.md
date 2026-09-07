@@ -48,11 +48,12 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   (pecceta, faggeta, mugheta…), non 8 generi. Gate **habitat** per-specie: bosco
   (`forest_fraction`) o prato (`grassland_fraction`) → supporta anche i saprotrofi di prato.
   Ritagliata sull'**AOI** (BZ+TN+VE): fuori i layer tematici non arrivano.
-  Validazione (Boyce vs GBIF, set GBIF di set 2026, **dentro l'AOI**): edulis +0.21,
-  pinophilus +0.12, aestivalis -0.42, cibarius -0.28. Il +0.71 di luglio era misurato
-  su un altro set GBIF e **senza ritaglio**, cioè con le presenze fuori area che
-  prendevano host = 1.0 gratis: non è confrontabile. Da qui in poi il numero vero è
-  questo, e dice che il modello va tarato — vedi *Da fare*.
+  Validazione (Boyce vs GBIF, set di set 2026, dentro l'AOI, **intorno 250 m**): edulis
+  +0.69, cibarius +0.60, aestivalis +0.53, caesarea +0.31, pinophilus +0.21 (aereus +0.91
+  ma con 4 punti, cioè rumore). Sul **pixel esatto** gli stessi profili danno +0.38,
+  +0.21, −0.37, 0.00, +0.15: la differenza non è il modello, è che una segnalazione GBIF
+  non ha la precisione di una cella da 200 m — vedi `docs/COME-FUNZIONA.md`. Due valori
+  sono confrontabili solo a parità di background **e** di operatore.
 - **Dinamico (QUANDO):** meteo **ICON-D2 via Open-Meteo** (batching multi-località) → feature §4 →
   readiness; poller notturno + archivio SQLite (**backfill incrementale** + gap-detector). La fase
   della buttata per cella meteo: **in fieri / pronto / tardi** (da days_since_trigger vs lag_days).
@@ -68,8 +69,8 @@ Dockerfile · docker-compose.yml · DEPLOY.md
 - **Da fare:** **taratura host/gate** — dentro l'AOI il 25–47% dei punti GBIF di presenza
   scora esattamente 0 (host noto e incompatibile, oppure `forest_fraction` = 0 su un punto
   con coordinate imprecise). Prima di dare la colpa ai pesi, separare le due cause e valutare
-  se in validazione il punto vada scorato col massimo di un intorno (~500 m, l'ordine di
-  grandezza dell'incertezza GBIF) invece che sul pixel esatto. Poi: **notifiche** al trigger di readiness — era il
+  se sia host o gate — l'intorno in validazione è ora il default e ha già mostrato che
+  buona parte di quegli zeri era imprecisione delle coordinate. Poi: **notifiche** al trigger di readiness — era il
   canale di consegna dell'active learning e con l'uscita del bot resta scoperto: servirà
   un mittente Telegram in sola uscita, oppure web push; learner (v4); **CORINE Land Cover** (sottotipi di prato/pascolo) + cablaggio hook
   `extra_static_layers`; saprotrofi del legno (chiodini, canopy invertito); profili di specie di
@@ -82,7 +83,7 @@ python -m gis.fetch_boundaries         # AOI: confini ISTAT BZ+TN+VE (versionata
 python -m gis.make_map                 # genera le mappe statiche a 200 m (richiede i layer grezzi, locali)
 python -m gis.fetch_meteo              # backfill/poll archivio meteo, tutte le specie (incrementale)
 python -m gis.predict_today            # fasi "idoneità dinamica" per specie → GeoJSON
-python -m gis.validate                 # Boyce vs GBIF (dentro l'AOI; --no-aoi per il vecchio riferimento)
+python -m gis.validate                 # Boyce vs GBIF (AOI + intorno 250 m; --pixel, --no-aoi per i vecchi riferimenti)
 python -m gis.replay boletus_edulis    # replay dell'archivio: quante volte sarebbe stato "pronto", e chi veta
 python -m gis.replay --cell m2200_..   # timeline giorno per giorno di una cella sola
 pytest                                 # test

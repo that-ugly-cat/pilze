@@ -49,3 +49,28 @@ def test_boyce_nullo_per_modello_casuale():
     pres = rng.uniform(0, 1, 500)          # nessuna preferenza
     res = boyce.continuous_boyce(pres, background)
     assert abs(res["boyce"]) < 0.5
+
+
+def test_intorno_produce_nove_punti_e_include_il_centro():
+    """La validazione scora il massimo di un intorno: il centro deve starci dentro."""
+    from gis.suitability import neighbourhood
+    pts = neighbourhood(46.3, 11.5, 250.0)
+    assert len(pts) == 9
+    assert (46.3, 11.5) in [(round(a, 6), round(b, 6)) for a, b in pts]
+    lats = [a for a, _ in pts]
+    # 250 m in latitudine ≈ 0.00226°: l'intorno copre ±250 m, non ±25 né ±2500
+    assert 0.002 < max(lats) - 46.3 < 0.003
+
+
+def test_score_cells_prende_il_massimo():
+    """Il punteggio di un punto è il migliore del suo intorno, non quello del centro."""
+    from engine.profiles import SpeciesProfile
+    from gis.suitability import score_cells
+    prof = SpeciesProfile(id="quercino", common_name="quercino", trophic_mode="mycorrhizal",
+                          host_genera={"querceto": 1.0},
+                          static_envelope={"elevation_m": {"min": 0, "opt": [400, 500], "max": 900}})
+    dentro = {"host_class": "querceto", "elevation_m": 450}
+    fuori = {"host_class": "querceto", "elevation_m": 880}
+    assert score_cells(prof, [[fuori, dentro, fuori]])[0] == score_cells(prof, [[dentro]])[0]
+    assert score_cells(prof, [[fuori]])[0] < score_cells(prof, [[dentro]])[0]
+    assert score_cells(prof, [[]]) == []          # punto fuori copertura: saltato

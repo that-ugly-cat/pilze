@@ -5,7 +5,8 @@ provider di feature disponibili. Oggi = solo DEM (quota/pendenza/esposizione): m
 quanta discriminazione porta il SOLO terreno, prima di forestale/suolo/disturbo.
 Man mano che si aggiungono provider, lo stesso comando dà un Boyce più alto.
 
-    python -m gis.validate            # usa data/gbif_occurrences.geojson (o lo scarica)
+    python -m gis.validate            # intorno 250 m (default): un punto GBIF non e un pixel
+    python -m gis.validate --pixel    # pixel esatto, solo per confronto coi numeri vecchi
 """
 
 from __future__ import annotations
@@ -20,7 +21,8 @@ from . import occurrences
 from .providers import (AOIProvider, CanopyProvider, CompositeFeatureProvider, DEMProvider,
                         ForestProvider, GeologyProvider, SoilProvider,
                         WorldCoverProvider)
-from .suitability import validate_species
+from .suitability import (NEIGHBOURHOOD_M, cells_at, random_background,
+                          validate_species)
 
 
 def build_provider(include_soil: bool = False,
@@ -100,16 +102,26 @@ def main() -> None:
                                       include_geology="--geology" in sys.argv,
                                       include_aoi="--no-aoi" not in sys.argv)
     presence = load_presence(cfg["bbox_wgs84"])
+    # Default: massimo di un intorno di 250 m, perché una segnalazione GBIF non è un
+    # pixel. `--pixel` torna al pixel esatto — utile solo per confrontarsi coi numeri
+    # vecchi, non per giudicare il modello.
+    radius = None if "--pixel" in sys.argv else NEIGHBOURHOOD_M
+    active.append("pixel esatto" if radius is None else f"intorno {radius:.0f} m")
 
-    print("Continuous Boyce Index — provider attivi: " + " + ".join(active))
+    # le feature sono species-agnostic: si interrogano una volta e si scorano tutte
+    bg_cells = cells_at(provider, random_background(5000, cfg), radius)
+    pres_cells = {sid: cells_at(provider, [(p["lat"], p["lon"]) for p in pts], radius)
+                  for sid, pts in presence.items()}
+
+    print("Continuous Boyce Index — " + " + ".join(active))
     print(f"{'specie':24s} {'n_pres':>7s} {'n_bg':>6s} {'boyce':>7s}")
     for sid, profile in sorted(reg.items()):
-        res = validate_species(profile, provider, presence.get(sid, []), n_background=5000, cfg=cfg)
+        res = validate_species(profile, pres_cells.get(sid, []), bg_cells)
         b = res["boyce"]
         bs = "  n/d" if b != b else f"{b:+.3f}"        # NaN-safe
         print(f"{sid:24s} {res['n_presence']:7d} {res['n_background']:6d} {bs:>7s}")
-    print("\nAtteso: positivo dove il terreno già discrimina (es. edulis, quota alta);")
-    print("debole/n.d. dove i punti GBIF sono pochi (es. aereus). Salirà con forestale+suolo+disturbo.")
+    print("\nAtteso: positivo dove il modello ordina bene. Due valori sono confrontabili")
+    print("solo a parità di background E di operatore (pixel o intorno).")
 
 
 if __name__ == "__main__":

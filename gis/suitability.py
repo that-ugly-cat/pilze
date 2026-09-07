@@ -9,6 +9,7 @@ implementando `features()` — vedi gis/README.md.
 
 from __future__ import annotations
 
+import math
 import random
 from abc import ABC, abstractmethod
 
@@ -65,18 +66,49 @@ def random_background(n: int, cfg: dict | None = None, seed: int = 0) -> list[tu
              rng.uniform(bb["lon_min"], bb["lon_max"])) for _ in range(n)]
 
 
-def validate_species(profile: SpeciesProfile, provider: FeatureProvider,
-                     presence_points: list[dict], n_background: int = 5000,
-                     cfg: dict | None = None) -> dict:
-    """Boyce index per una specie: presenze (GBIF) vs background casuale.
+# Raggio dell'intorno usato in validazione: l'ordine di grandezza dell'incertezza di una
+# segnalazione GBIF. Le celle sono da 200 m e le coordinate valgono spesso qualche
+# centinaio di metri: scorare il pixel esatto chiede al modello di indovinare un posto
+# dove il fungo non era, e dal 25 al 47% delle presenze finisce a zero. Vedi
+# docs/COME-FUNZIONA.md, "un punto GBIF non è un pixel".
+NEIGHBOURHOOD_M = 250.0
 
-    NB: con lo StubFeatureProvider tutte le idoneità sono identiche → Boyce = NaN
-    (nessuna discriminazione). Diventa informativo coi provider raster reali.
+
+def neighbourhood(lat: float, lon: float, radius_m: float = NEIGHBOURHOOD_M):
+    """I 9 punti di un intorno 3×3 attorno a (lat, lon)."""
+    dlat = radius_m / 110_540.0
+    dlon = radius_m / (111_320.0 * math.cos(math.radians(lat)))
+    return [(lat + i * dlat, lon + j * dlon) for i in (-1, 0, 1) for j in (-1, 0, 1)]
+
+
+def cells_at(provider: FeatureProvider, points, radius_m: float | None = NEIGHBOURHOOD_M):
+    """Feature per ogni punto: una lista di celle (l'intorno) o la singola cella.
+
+    Le feature sono species-agnostic, quindi si interrogano UNA volta e poi si scorano
+    tutte le specie: senza questo, l'intorno moltiplicherebbe per nove il costo di ogni
+    validazione. Ritorna [] per i punti fuori copertura, che il chiamante salta.
     """
-    pres = [s for p in presence_points
-            if (s := suitability_at(profile, provider, p["lat"], p["lon"])) is not None]
-    bg = [s for lat, lon in random_background(n_background, cfg)
-          if (s := suitability_at(profile, provider, lat, lon)) is not None]
+    out = []
+    for lat, lon in points:
+        pts = [(lat, lon)] if radius_m is None else neighbourhood(lat, lon, radius_m)
+        out.append([c for c in (provider.features(a, b) for a, b in pts) if c is not None])
+    return out
+
+
+def score_cells(profile: SpeciesProfile, cells) -> list[float]:
+    """Punteggio per punto: il MASSIMO dell'intorno (col pixel singolo è il pixel)."""
+    return [max(static_suitability(profile, c) for c in group) for group in cells if group]
+
+
+def validate_species(profile: SpeciesProfile, cells_presence, cells_background) -> dict:
+    """Boyce index per una specie, da celle già interrogate (vedi `cells_at`).
+
+    Presenze e background devono passare per lo STESSO operatore: applicare l'intorno solo
+    alle presenze gonfia il numeratore e misura l'operatore invece del modello (+0.9
+    contro +0.57 sul porcino).
+    """
+    pres = score_cells(profile, cells_presence)
+    bg = score_cells(profile, cells_background)
     if not pres or not bg:
         return {"boyce": float("nan"), "n_presence": len(pres), "n_background": len(bg)}
     result = boyce.continuous_boyce(pres, bg)

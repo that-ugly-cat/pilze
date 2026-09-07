@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from engine.profiles import load_profiles
-from gis.suitability import validate_species
+from gis.suitability import cells_at, random_background, validate_species
 from gis.validate import build_provider
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -27,10 +27,15 @@ print("con suolo:", " + ".join(ag))
 print()
 
 NB = 1200
+bg = random_background(NB)
+celle = {nome: (cells_at(prov, bg), {sid: cells_at(prov, [(q["lat"], q["lon"]) for q in pts.get(sid, [])])
+                                    for sid in pts})
+         for nome, prov in (("base", base), ("geo", geo))}
+
 print(f"{'specie':22s} {'baseline':>9s} {'+suolo':>9s} {'Δ':>7s}")
 for sid in ["boletus_edulis", "cantharellus_cibarius", "boletus_pinophilus", "amanita_caesarea"]:
-    b = validate_species(reg[sid], base, pts.get(sid, []), n_background=NB)["boyce"]
-    g = validate_species(reg[sid], geo, pts.get(sid, []), n_background=NB)["boyce"]
+    b = validate_species(reg[sid], celle["base"][1].get(sid, []), celle["base"][0])["boyce"]
+    g = validate_species(reg[sid], celle["geo"][1].get(sid, []), celle["geo"][0])["boyce"]
     print(f"{sid:22s} {b:+9.3f} {g:+9.3f} {g-b:+7.3f}")
 
 # persisti la cache geologia REST
