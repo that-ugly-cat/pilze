@@ -228,6 +228,149 @@ dentro.
 
 ---
 
+## Che modello è, e come si valida
+
+### No, non è bayesiano
+
+Domanda ricorrente, e la risposta onesta è **non ancora**. Oggi Pilze è una **valutazione
+multi-criterio sfumata** (fuzzy MCE), che è lo strumento classico delle carte di idoneità
+dell'habitat, non un modello statistico.
+
+Cosa manca per essere bayesiano: non c'è una distribuzione a priori sui parametri, non c'è
+una verosimiglianza, non c'è un posteriore. Quando la documentazione dice «priori esperti»
+usa la parola in senso lato — sono **valori** decisi da una persona, non distribuzioni. E
+non esce nessuna misura di incertezza: il modello dà un numero, non un intervallo.
+
+Il bayesiano è il piano della **v4**: ritrovamenti e vuoti aggiornano i parametri come si
+aggiorna un priore, e per scelta l'aggiornamento sarà **grossolano** — sposta il profilo
+intero, non i singoli fattori. Con poche decine di punti l'assegnazione del credito fra
+sei fattori correlati è impossibile, e fingere di poterla fare produrrebbe numeri precisi
+e sbagliati.
+
+Quello che abbiamo fatto finora non è nemmeno inferenza automatica: è **falsificazione a
+mano**. Si prende un'osservazione di campo, si guarda quale soglia l'ha vetata, si verifica
+dove sta quella soglia nella distribuzione osservata, e se sta al percentile 100 la si
+dichiara falsificata. È un metodo legittimo e trasparente, ma da poche osservazioni, e va
+sostituito appena i punti diventano decine.
+
+### Il punteggio non è una probabilità
+
+`idoneità = 0.7` **non** significa «70% di probabilità di trovare funghi». Significa che
+quella cella sta in alto nella scala interna del modello, e nient'altro. La scala non è
+calibrata contro nessuna frequenza osservata, e i valori assoluti dipendono anche da
+scelte arbitrarie — per esempio `drainage`, che non essendo misurato da nessun layer
+abbassa ogni cella di circa il 9% senza distinguere niente.
+
+Quello che il punteggio fa bene è **ordinare**: fra due celle, quella col punteggio più
+alto è quella che il modello preferisce. Per questo le metriche che usiamo sono tutte di
+ordinamento, non di calibrazione.
+
+### Perché quelle formule
+
+**I gate moltiplicano** perché codificano condizioni necessarie: senza ospite non ci sono
+funghi, per quanto piova. Uno zero in un fattore necessario deve azzerare il prodotto, ed
+è esattamente ciò che fa la moltiplicazione.
+
+**I fattori graduati si combinano in media geometrica pesata**, non aritmetica. La
+geometrica penalizza lo squilibrio: una cella con quota perfetta e pH pessimo vale meno di
+una mediocre in entrambi, mentre l'aritmetica le pareggerebbe. È anche la media naturale
+per grandezze che si moltiplicano, e in scala logaritmica è semplicemente una media
+pesata. I pesi: quota 1.0, esposizione 0.8, pH 0.8, pendenza 0.5, drenaggio 0.5.
+
+**Le appartenenze sono trapezoidali**, non a gradino: una faggeta a 1001 m con `max: 1000`
+non deve crollare a zero. I bordi netti sono quasi sempre un artefatto di come è scritta la
+regola, non un fatto biologico.
+
+### Il Continuous Boyce Index
+
+È la metrica principale, e la ragione è che i dati di validazione sono **presence-only**:
+GBIF dice dove qualcuno ha visto un fungo, mai dove ha guardato e non c'era. Senza vere
+assenze, AUC e compagnia non si calcolano onestamente.
+
+Il Boyce (Hirzel et al., 2006) confronta due frequenze lungo la scala di idoneità: **F**,
+la quota di presenze che cade in una finestra di punteggio, ed **E**, la quota di area
+*disponibile* nella stessa finestra. Il rapporto **P/E** dice se quella fascia è
+frequentata più di quanto sarebbe per caso; poi si correla (Spearman) P/E con l'idoneità,
+e se il modello è buono P/E cresce in modo monotòno. L'implementazione (`gis/boyce.py`) usa
+100 finestre mobili larghe il 10% della scala.
+
+Si legge così: **+1** ordina perfettamente, **0** non fa meglio del caso, **negativo** è
+peggio del caso — le presenze stanno dove il modello dice di no.
+
+Stato al 7 set 2026, dentro l'AOI:
+
+| specie | punti GBIF | Boyce |
+|---|---|---|
+| porcino | 379 | +0.462 |
+| finferlo | 119 | +0.238 |
+| porcino rosso | 24 | +0.138 |
+| porcino nero | 4 | +0.091 |
+| ovolo | 17 | +0.014 |
+| estatino | 32 | −0.367 |
+
+L'estatino è **negativo**: il modello lo manda dove non è. Con 32 punti non è un verdetto,
+ma è la specie da guardare per prima.
+
+### La trappola del Boyce: il «disponibile» decide il risultato
+
+`E` dipende da cosa si considera disponibile, e questo cambia il numero più di quanto lo
+cambi il modello. È successo davvero: a luglio l'edulis dava **+0.71**, oggi dà +0.46, e nel
+frattempo il modello è **migliorato**. Il vecchio numero era misurato senza il ritaglio
+sull'AOI, cioè con presenze fuori dall'area dei dati tematici che prendevano `host = 1.0`
+gratis e finivano in cima alla scala. Non è un peggioramento: è che il metro di prima era
+truccato a favore.
+
+Regola pratica: **due valori di Boyce sono confrontabili solo se hanno lo stesso
+background**. Cambiando l'area, la soglia o i layer attivi, il confronto salta.
+
+Limite ancora aperto: il background è campionato uniformemente dentro l'AOI, quindi mescola
+pianura e montagna, e una parte della «discriminazione» è in realtà «montagna contro
+pianura». La cura è un background ristretto al bosco più una cross-validation a blocchi
+spaziali (§6.3), che non è ancora fatta.
+
+### Il replay: falsificare senza etichette
+
+`gis/replay.py` non usa nessun ritrovamento. Rigira lo scorer dinamico su ogni giorno
+passato di ogni cella dell'archivio — circa 200.000 celle-giorno — e conta quante volte una
+cella sarebbe mai stata «pronto», attribuendo a ciascun blocco il **primo vincolo che
+scatta**.
+
+È un test di plausibilità, non di verità: non può dire se il modello ha ragione, ma può
+dire che è **impossibile** che ce l'abbia. Se in tutta la stagione nessuna cella arriva mai
+a «pronto» mentre i funghi ci sono stati, il modello è falsificato senza bisogno di una
+sola etichetta. È così che si è scoperto che il `thermal_shock_c` del porcino rosso stava
+al **percentile 100** delle osservazioni: non una soglia severa, un veto permanente.
+
+### I dati di campo, e cosa si può concludere da cinque punti
+
+I ritrovamenti loggati sono **presenze e assenze vere, con lo sforzo**: esattamente ciò che
+a GBIF manca. Un vuoto **mirato** — cercavi quella specie, dove sai che c'è — è uno zero
+forte sul *quando*; un vuoto generico dice molto meno; e senza il tempo di ricerca un vuoto
+non è pesabile, perché dieci minuti e tre ore non sono lo stesso zero.
+
+Ma cinque osservazioni sono cinque. L'esempio dell'esposizione mostra il ragionamento e il
+suo limite: quattro ritrovamenti su cinque stanno su versante caldo mentre i profili
+chiedono *fresco*. Il tasso di base, misurato su 1500 celle boscate dell'AOI, è warm 36% /
+cool 34% / neutral 30%: il terreno non è sbilanciato, e vedere quattro caldi su cinque ha
+probabilità di circa il **6%**. Suggestivo, non dimostrativo.
+
+Il parametro è stato ammorbidito lo stesso — da 0.1 a 0.35 — e la ragione non è statistica
+ma **asimmetrica**: un fattore dieci codifica una quasi-certezza che quel prior non ha, e
+sbagliare per eccesso di permissività costa una camminata, mentre sbagliare per eccesso di
+severità costa un posto che non vedrai mai. La conferma è poi arrivata da una fonte
+indipendente dai ritrovamenti: il Boyce su GBIF è migliorato su cinque specie su sei.
+
+### Cosa renderebbe questo modello statistico
+
+- Una **verosimiglianza** che leghi i ritrovamenti (con lo sforzo) al punteggio, così da
+  aggiornare i parametri invece di spostarli a mano.
+- **Calibrazione**: verificare che le celle a 0.7 producano davvero più spesso di quelle a
+  0.4, e in che rapporto.
+- Metriche di **skill sopra una baseline ingenua**, non numeri grezzi: precision@k sugli
+  spot proposti, errore sul lag in giorni, Boyce con cross-validation a blocchi.
+- Trattare la **dipendenza spaziale**: due celle vicine non sono osservazioni indipendenti,
+  e ignorarlo gonfia ogni intervallo di confidenza che calcoleremo.
+
 ## Cosa sappiamo che non va
 
 Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o non sa.
