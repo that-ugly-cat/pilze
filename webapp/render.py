@@ -15,7 +15,14 @@ import numpy as np
 MAPS_DIR = Path(__file__).resolve().parent.parent / "data" / "maps"
 CACHE_DIR = MAPS_DIR / "_png"
 
-SCORE_MAX = 0.8      # normalizzazione comune (max osservato ~0.78); usata da PNG e griglia
+# Normalizzazione COMUNE a tutte le specie (PNG e griglia interattiva): serve a rendere i
+# colori confrontabili fra una specie e l'altra. Era 0.8, cioè il massimo osservato di
+# allora — una costante tarata sui dati, che ogni cambio di modello rende stantia. Col
+# drenaggio misurato (7 set 2026) quattro specie su sette superano 0.8 nel campione, e
+# sopra la soglia la quantizzazione a uint8 satura: le celle migliori diventerebbero
+# indistinguibili da quelle buone, cioè proprio quelle che si cercano. Ora è il limite
+# teorico del punteggio, che non può invecchiare.
+SCORE_MAX = 1.0
 
 
 def _reproject(tif: Path, dst_crs: str, nearest: bool = False):
@@ -70,7 +77,7 @@ def suitability_png(species: str):
     from PIL import Image
 
     cmap = matplotlib.colormaps["YlGn"]
-    v = np.clip(arr / SCORE_MAX, 0, 1)           # normalizza (max osservato ~0.78)
+    v = np.clip(arr / SCORE_MAX, 0, 1)           # normalizza sul limite teorico, non sul max osservato
     rgba = (cmap(v) * 255).astype("uint8")
     rgba[..., 3] = np.where(arr > 0.05, 200, 0)  # trasparente dove ~0
     buf = io.BytesIO()

@@ -9,7 +9,7 @@ Stack: Docker Compose (web + bot + poller) dietro Caddy (HTTPS), pattern borant.
 
 ## Cosa viaggia e cosa no
 - **Nel repo (git):** codice + `profiles/` + `config/` + **l'AOI** `data/aoi/` (confini BZ+TN+VE, ~300 KB: serve sia alla maschera dei provider sia al layer confini della web app).
-- **NON nel repo:** i layer grezzi (DEM, forestale, geologia, WorldCover, canopy), che servono solo a *generare* le mappe, e **le mappe statiche stesse** `data/maps/idoneita_*.tif`. Erano versionate finché pesavano 600 KB l'una; a passo 200 m sono 5 MB × 8 specie, cioè ~40 MB di binari a ogni rigenerazione. Ora si generano **sul VPS** col bottone «Rigenera» dell'admin, e vivono nel volume.
+- **NON nel repo:** i layer grezzi (DEM, forestale, geologia, WorldCover, canopy), che servono solo a *generare* le mappe, e **le mappe statiche stesse** `data/maps/idoneita_*.tif`. Erano versionate finché pesavano 600 KB l'una; a passo 200 m sono 5 MB × 9 specie, cioè ~45 MB di binari a ogni rigenerazione. Ora si generano **sul VPS** col bottone «Rigenera» dell'admin, e vivono nel volume.
 - **Volumi persistenti sul VPS** (`./data`): DB osservazioni/meteo/utenti + foto + il `pronte_oggi_*.geojson` ricalcolato dal poller.
 
 ## Passi
