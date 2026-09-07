@@ -308,8 +308,34 @@ Stato al 7 set 2026, dentro l'AOI:
 | ovolo | 17 | +0.014 |
 | estatino | 32 | −0.367 |
 
-L'estatino è **negativo**: il modello lo manda dove non è. Con 32 punti non è un verdetto,
-ma è la specie da guardare per prima.
+### Il caso dell'estatino: quando è il metro a non reggere
+
+L'estatino è a −0.367, e la lettura ovvia — «il modello lo manda dove non è» — non regge
+all'esame. Il punteggio medio alle presenze (0.195) è *più alto* di quello del background
+(0.077): il modello non è anti-predittivo, è **non monotòno**, e il Boyce misura la
+monotonia. Le presenze si affollano a metà scala, mentre il vertice resta vuoto.
+
+Il perché sta in due cose, e nessuna delle due è un difetto dei parametri.
+
+**Le etichette sono contaminate.** Dei 32 punti GBIF, il 25% sta sopra i 1200 m e il 16%
+sopra i 1500, che è il massimo assoluto del profilo; cinque cadono in larici-cembreto, un
+bosco che per una specie termofila di latifoglie non ha senso. Gli stessi punti, letti col
+profilo del **porcino**, prendono 0.301 di media contro lo 0.195 del loro: somigliano a
+porcini più che a estatini. *B. reticulatus* si confonde con *B. edulis* facilmente, e in
+un archivio di segnalazioni non verificate quella confusione finisce nei dati.
+
+**E il vertice del modello non è campionato.** Il profilo dà il massimo ai castagneti e
+querceti collinari, ma nell'AOI il bosco sotto gli 800 m è il **28% del disponibile** e
+solo l'**8.3%** dei punti GBIF: sotto i 600 m, 19% del bosco contro 4.5% dei punti. In
+tutta l'area, sotto i 900 m in latifoglie termofile, ci sono **tredici** segnalazioni di
+tutte e sei le specie messe insieme. Nessuno raccoglie dati lì, quindi la fascia dove il
+modello si sbilancia di più non ha modo di essere confermata.
+
+La conclusione è che **per l'estatino il Boyce oggi non è una metrica utilizzabile**, e
+quel −0.367 non va letto come un giudizio sul profilo. Rifare i parametri per far salire
+quel numero significherebbe insegnare al modello a trovare porcini e chiamarli estatini.
+Serve un'osservazione di campo: un solo estatino loggato, con la sua data e il suo bosco,
+vale più di trentadue segnalazioni di provenienza ignota.
 
 ### La trappola del Boyce: il «disponibile» decide il risultato
 
@@ -389,5 +415,9 @@ Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o n
 - **La geologia non copre uniformemente.** Il fallback a 2 km tappa i buchi quaternari, ma
   una cella su substrato dedotto non vale una su substrato affiorante, e oggi il punteggio
   non distingue i due casi.
+- **La validazione GBIF ha un bias di quota misurato.** Il bosco sotto gli 800 m è il 28%
+  del disponibile ma solo l'8.3% delle segnalazioni: chi registra funghi lo fa in montagna.
+  Ogni Boyce di una specie di bassa quota va letto sapendolo, e l'estatino ne è il caso
+  limite (vedi sopra).
 - **`RAIN_TRIGGER_MM = 10` è una costante di modulo**, non un campo di profilo: la
   definizione stessa di «innesco» non è tarabile per specie, mentre tutto il resto lo è.
