@@ -166,3 +166,5 @@ label.near { margin: 2px 0 4px !important; font-size: 14px; }
 .doc hr { border: 0; border-top: 1px solid #e2e6dc; margin: 26px 0; }
 .doc table th { background: #f2f4ee; }
 .doc td, .doc th { vertical-align: top; }
+.doc .live { background: #eef4ee; border: 1px solid #cfe0d3; border-radius: 6px;
+  padding: 8px 12px; font-size: 13px; margin: 10px 0 16px; }

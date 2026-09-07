@@ -443,6 +443,29 @@ def _explainer():
     return _DOC_CACHE
 
 
+def _archive_now() -> str:
+    """Riga viva sullo stato dell'archivio meteo, al posto del segnaposto nel markdown.
+
+    I numeri nella tabella sono un'istantanea datata: giusti per chi legge il file su
+    GitHub, vecchi di una notte per chi legge la pagina. Qui si contano davvero.
+    """
+    try:
+        from gis import meteo
+        conn = meteo.connect()
+        mn, mx, rows, cells = conn.execute(
+            "SELECT MIN(date), MAX(date), COUNT(*), COUNT(DISTINCT meteo_cell_id) "
+            "FROM meteo").fetchone()
+        conn.close()
+    except Exception:
+        return ""
+    if not mn:
+        return '<p class="hint">Archivio meteo ancora vuoto.</p>'
+    giorni = (date.fromisoformat(mx) - date.fromisoformat(mn)).days + 1
+    mille = lambda n: f"{n:,}".replace(",", ".")      # separatore italiano, sul NUMERO
+    return (f'<p class="live"><b>Adesso in archivio:</b> dal {mn} al {mx} — '
+            f'{giorni} giorni, {mille(rows)} righe, {mille(cells)} celle.</p>')
+
+
 @app.get("/docs", response_class=HTMLResponse)
 def docs_page(request: Request):
     """Documentazione unica, per tutti: come funziona il modello, da dove vengono i dati,
@@ -451,8 +474,9 @@ def docs_page(request: Request):
     if not u:
         return RedirectResponse("/login", status_code=303)
     doc = _explainer()
+    html = doc["html"].replace("<!--ARCHIVIO-->", _archive_now())
     return templates.TemplateResponse(request, "docs.html",
-                                      {"user": u, "explainer": doc["html"], "toc": doc["toc"]})
+                                      {"user": u, "explainer": html, "toc": doc["toc"]})
 
 
 @app.get("/admin/docs")

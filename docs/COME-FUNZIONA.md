@@ -185,13 +185,29 @@ cieco accettato: l'abete morto **in piedi**, che da satellite somiglia ancora a 
 `soil_temperature_6cm`, `soil_moisture_3_to_9cm`, `temperature_2m`.
 
 Sorgente **unica** per scelta: niente ERA5-Land, niente stack multi-sorgente, così non c'è
-discontinuità di giunzione fra bias diversi. Il prezzo è il cold-start di 2–4 settimane.
+discontinuità di giunzione fra bias diversi. Il prezzo è il cold-start.
 
-Il poller (`fetch_meteo.py`) gira ogni notte, con batching multi-località — circa 45
-richieste per l'intera regione invece di una per cella — retry con backoff sul 429, e un
-gap-detector: **una corsa persa è un buco permanente**, perché all'indietro non si recupera.
+| | |
+|---|---|
+| **Da quando** | **20 giugno 2026** — la prima data in archivio. Prima non esiste, e non è recuperabile: ICON-D2 tiene le corse circa 24 h, l'archivio ce lo costruiamo in avanti noi. |
+| **Quanto** | 79 giorni, 422.801 righe, **7.206 celle** (al 6 set 2026). Le celle più vecchie hanno la serie intera; quelle entrate dopo partono dal loro backfill. |
+| **Risoluzione spaziale** | 2.2 km, la maglia nativa di ICON-D2. Le celle dell'archivio sono i quadrati da 2200 m della griglia comune. Più fine non avrebbe senso: sarebbe interpolazione, non informazione. |
+| **Risoluzione temporale** | orario alla fonte, **aggregato a giornaliero** in archivio: pioggia sommata, temperatura e umidità del suolo mediate sul giorno. Una riga per cella-giorno. |
+| **Frequenza** | una volta al giorno, **a mezzanotte**, poi il ricalcolo di «pronte oggi». |
 
-L'archivio è un SQLite (`data/meteo.db`), una riga per cella-giorno.
+<!--ARCHIVIO-->
+
+Ogni poll chiede gli **ultimi 3 giorni**, non solo quello appena chiuso: una corsa persa si
+richiude da sola entro tre giorni, e solo un'interruzione più lunga lascia un buco vero. È
+il motivo per cui c'è comunque un **gap-detector** — quello che manca non torna più.
+
+Una cella nuova (specie nuova, o un'osservazione loggata fuori dalle candidate) entra con
+un **backfill di 21 giorni**, incrementale: chi ha già abbastanza storia recente viene
+saltato, così un run interrotto riprende dalle mancanti senza riscaricare tutto.
+
+Il poller (`fetch_meteo.py`) usa batching multi-località — circa 45 richieste per l'intera
+regione invece di una per cella, un poll in circa un minuto — con retry e backoff sul 429.
+L'archivio è un SQLite (`data/meteo.db`).
 
 Le celle da pollare sono quelle **candidate** (almeno una cella statica sopra 0.4 dentro i
 2.2 km) **più quelle di ogni osservazione loggata**. La seconda parte non è un dettaglio:
