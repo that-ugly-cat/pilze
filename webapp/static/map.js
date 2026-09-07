@@ -304,22 +304,46 @@ async function loadPins() {
       // Un fungo per i ritrovamenti, e i due vuoti distinti fra loro: un vuoto mirato
       // dice molto di più di una passeggiata, e sulla mappa deve vedersi.
       const glyph = p.is_blank ? (p.target ? '🎯' : '🚫') : '🍄';
+      const cls = `obs-pin${p.is_blank ? ' blank' : ''}${pinFocused(p) ? '' : ' dim'}`;
       const icon = L.divIcon({
         className: '', iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -10],
-        html: `<span class="obs-pin${p.is_blank ? ' blank' : ''}">${glyph}</span>`
+        html: `<span class="${cls}">${glyph}</span>`
       });
       const m = L.marker(ll, { icon });
-      let html = p.is_blank ? '<b>uscita a vuoto</b>' : `<b>${p.species || '?'}</b>`;
-      if (p.is_blank && p.target) html += `<br>cercavo: ${p.target}`;
+      let html = p.is_blank ? '<b>uscita a vuoto</b>' : `<b>${speciesName(p.species)}</b>`;
+      if (p.is_blank && p.target) html += `<br>cercavo: ${speciesName(p.target)}`;
       if (p.phase) html += `<br>fase: ${p.phase}`;
       if (p.weight_g) html += `<br>${p.weight_g} g`;
       if (p.abundance) html += `<br>${p.abundance}`;
       if (p.effort_min) html += `<br>ricerca: ~${p.effort_min} min`;
       html += `<br><small>${p.ts || ''}</small>`;
-      if (p.photo) html += `<br><img src="/photo/${p.id}" style="max-width:180px;margin-top:4px;border-radius:4px">`;
+      if (p.photo) html += `<br><a href="/photo/${p.id}" target="_blank" rel="noopener">`
+        + `<img class="obs-photo" src="/photo/${p.id}" alt="foto del ritrovamento"></a>`;
       return m.bindPopup(html);
     }
   }).addTo(map);
+  applyPinFocus();
+}
+
+// I ritrovamenti restano tutti visibili — un vuoto di ieri su un'altra specie dice
+// comunque che lì ci sei stato — ma quelli che non riguardano la specie scelta si
+// smorzano, così la mappa risponde alla domanda che le stai facendo adesso.
+// i nomi comuni sono già nel menu specie: nel popup "Porcino" si legge, "boletus_edulis" no
+const SPECIES_NAME = Object.fromEntries(
+  [...sel.options].map(o => [o.value, o.textContent.split('—')[0].trim()]));
+const speciesName = (id) => SPECIES_NAME[id] || id || '?';
+
+function pinFocused(p) {
+  return p.species === sel.value || p.target === sel.value;
+}
+
+function applyPinFocus() {
+  if (!pinsLayer) return;
+  pinsLayer.eachLayer(l => {
+    const el = l.getElement && l.getElement();
+    const span = el && el.querySelector('.obs-pin');
+    if (span) span.classList.toggle('dim', !pinFocused(l.feature.properties));
+  });
 }
 
 // --- confini area dati (BZ + TN + VE) -------------------------------------- //
@@ -467,7 +491,7 @@ function markShared(ll) {
 function reloadAll() { loadStatic(); loadPronte(); loadPins(); loadAoi(); }
 sel.addEventListener('change', () => {
   try { localStorage.setItem(SPECIES_KEY, sel.value); } catch (e) { /* storage negato */ }
-  loadStatic(); loadPronte(); clearTopSpots();
+  loadStatic(); loadPronte(); clearTopSpots(); applyPinFocus();
 });
 document.getElementById('l-static').addEventListener('change', loadStatic);
 document.getElementById('l-pronte').addEventListener('change', loadPronte);

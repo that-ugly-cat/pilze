@@ -175,3 +175,8 @@ label.near { margin: 2px 0 4px !important; font-size: 14px; }
 #share.armed { background: #a33; }
 .obs-pin.shared { font-size: 22px; opacity: 1; }
 #toast a { word-break: break-all; }
+
+/* Pin di un'altra specie: restano, ma non competono con quelli che stai cercando.
+   Dopo .obs-pin.blank, così vince su entrambi (stessa specificità, ordine). */
+.obs-pin.dim { opacity: .3; }
+.obs-photo { max-width: 220px; margin-top: 5px; border-radius: 5px; display: block; }

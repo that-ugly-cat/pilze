@@ -597,7 +597,11 @@ def pins(request: Request):
                                      "ts": o.get("obs_date") or (o.get("ts_submit") or "")[:10],
                                      "target": o.get("target_species"),
                                      "effort_min": o.get("effort_min"),
-                                     "photo": bool(o.get("photo_file_id"))},
+                                     # o un file_id Telegram (cattura vecchia) o un file
+                                     # caricato dal form: guardare solo il primo teneva
+                                     # invisibili tutte le foto nuove
+                                     "photo": bool(o.get("photo_file_id"))
+                                     or (PHOTO_CACHE / f"{o['id']}.jpg").exists()},
                       "geometry": {"type": "Point", "coordinates": [o["lon"], o["lat"]]}})
     return JSONResponse({"type": "FeatureCollection", "features": feats})
 
