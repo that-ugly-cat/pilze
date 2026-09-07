@@ -1,0 +1,49 @@
+# Profilo specie — Amanita muscaria (ovolo malefico)
+# Priori esperti. Specie ectomicorrizica generalista di boschi temperati,
+# boreali e montani. I trigger dinamici sono una prima passata da calibrare
+# sui dati osservativi locali.
+
+species:
+  id: amanita_muscaria
+  common_name: ovolo malefico
+  trophic_mode: mycorrhizal
+  similar_to: []
+
+  host_genera:
+    # Conifere
+    pecceta: 1.0
+    pecceta_secondaria: 0.9
+    pineta_silvestre: 1.0
+    larici_cembreto: 0.9
+    abetina: 0.8
+    pineta_nera: 0.7
+    mugheta: 0.5
+
+    # Latifoglie
+    altre_latifoglie: 1.0       # soprattutto betulla, non distinta nella CFI
+    faggeta: 0.9
+    querceto_rovere: 0.8
+    querceto: 0.7
+    castagneto: 0.7
+    querco_carpineto: 0.5
+    alneto: 0.4
+
+  static_envelope:
+    elevation_m: { min: 150, opt: [600, 1700], max: 2200 }
+    aspect: cool
+    slope_deg: { opt: [0, 30] }
+    soil_ph: acidic
+    drainage: well_drained
+
+  phenology_months: [7, 8, 9, 10, 11]
+
+  dynamic_triggers:
+    # finestra allargata oltre il lag massimo, altrimenti l'innesco esce dalla
+    # finestra proprio quando la specie sarebbe pronta. Soglia rialzata allo
+    # STESSO percentile: la severita' non cambia.
+    rain_window_days: 20
+    cumulative_rain_mm: 56
+    soil_temp_c: { min: 7, max: 17 }
+    thermal_shock_c: 1.5      # i 4 gradi stavano al p90 dello shock osservato (mediana 1.45)
+    lag_days: { opt: [7, 16] }
+    moisture_floor: 0.21

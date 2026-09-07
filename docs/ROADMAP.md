@@ -136,6 +136,14 @@ Il gate a pesi e `edge_density` sono l'infrastruttura; i dati veri del prato man
 ## ongoing
 - [ ] Nuove specie via profili (§7). Nuove modalità trofiche: morchelle (ramo primaverile,
       `hydrography_distance`/`burn_areas`), *Coprinus* (logica invertita bosco↔prato).
+- [x] **Coprino chiomato ritarato, e i due profili orfani portati in git.** `amanita_muscaria`
+      e `coprinus_comatus` vivevano solo nel volume del VPS: nessun `validate` li aveva mai
+      visti. Alla prima misura la muscaria stava benissimo (+0.855) e il coprino era
+      **anti-predittivo** (−0.155 sull'intorno, −0.770 sul pixel, 275 punti), unico sotto
+      zero della collezione. Due cause, entrambe misurate: il gate `grassland` secco metteva
+      il 36% delle sue presenze sotto 0.1, e il tetto di quota a 1200 m tagliava dentro il
+      grosso delle segnalazioni (p90 1744). Corretto a `{grassland 1.0, forest 0.5}` e
+      `opt [200,1700] max 2100`: **−0.155 → +0.808**.
 - [~] **Mazza di tamburo** (`profiles/macrolepiota_procera.yaml`, 7 set 2026): prima specie
       di **ecotono**, e il banco di prova del gate a pesi. Tarata su 432 punti GBIF contro
       un background di Agaricales. Boyce sull'intorno **+0.967**, zero presenze a zero — ma

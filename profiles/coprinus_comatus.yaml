@@ -1,0 +1,50 @@
+# Profilo specie — Coprinus comatus (coprino chiomato)
+# Saprotrofo di prati, pascoli, parchi, giardini, bordi stradali e altri terreni erbosi o
+# disturbati. Fruttificazione principalmente primaverile e autunnale.
+#
+# Tarato il 7 set 2026, quando la prima validazione mai fatta su questo profilo l'ha
+# trovato ANTI-PREDITTIVO: Boyce -0.155 sull'intorno e -0.770 sul pixel, su 275 punti
+# GBIF. Era l'unica specie sotto zero della collezione, ed era rimasto invisibile perché
+# viveva solo nel volume del VPS, fuori da git e da qualunque `validate`.
+
+species:
+  id: coprinus_comatus
+  common_name: coprino chiomato
+  trophic_mode: saprotrophic
+  # Non solo prato: al pixel esatto i suoi punti stanno per il 62% su bosco, 27% su prato e
+  # 7% su costruito, perché il coprino è una specie di margini, radure e terreni disturbati.
+  # Il gate a una classe sola metteva il 36% delle sue presenze note sotto 0.1. Il peso 0.5
+  # è un ottimo INTERNO misurato (0.0 → +0.450, 0.5 → +0.839, 1.0 → +0.663) e togliere del
+  # tutto il gate va peggio (+0.750): il metro sta premiando una forma, non un allentamento.
+  # `built_up` provato e scartato: tutta la riga da 0.0 a 1.0 sta in tre centesimi, cioè
+  # rumore, e dare peso al costruito rischia di imparare dove stanno i micologi.
+  habitat:
+    grassland: 1.0
+    forest: 0.5
+  similar_to: [macrolepiota_procera]     # l'altro saprotrofo di ecotono
+
+  static_envelope:
+    # Il tetto vecchio (1200, con max 1800) tagliava dentro il grosso delle segnalazioni,
+    # che hanno p90 a 1744 m. Alzarlo vale da solo mezzo punto di Boyce. Il PAVIMENTO resta
+    # basso di proposito: il Boyce preferirebbe 400 m (+0.878 contro +0.808), ma contro lo
+    # sforzo di osservazione il coprino non ha nessuna preferenza di quota — mediana 1139
+    # contro 1126 — e in pianura è segnalato PIÙ del fungo medio (p10 17 m contro 536).
+    # Quei sette centesimi si comprerebbero codificando il bias di chi registra.
+    elevation_m: { min: 0, opt: [200, 1700], max: 2100 }
+    aspect: neutral
+    slope_deg: { opt: [0, 15], max: 30 }
+    soil_ph: tolerant
+    drainage: moist
+
+  phenology_months: [4, 5, 6, 9, 10, 11]
+
+  dynamic_triggers:
+    # finestra allargata oltre il lag massimo, altrimenti l'innesco esce dalla
+    # finestra proprio quando la specie sarebbe pronta. Soglia rialzata allo
+    # STESSO percentile: la severita' non cambia.
+    rain_window_days: 14
+    cumulative_rain_mm: 46
+    soil_temp_c: { min: 8, max: 22 }
+    thermal_shock_c: 1.0      # i 3 gradi stavano al p95 dello shock osservato (mediana 0.95)
+    lag_days: { opt: [4, 10] }
+    moisture_floor: 0.20

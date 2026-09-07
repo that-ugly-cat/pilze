@@ -3,8 +3,10 @@
 Sistema per **mappare le aree produttive** per specie di funghi, **prevedere le buttate**
 (idoneità statica dell'habitat × condizioni meteo dinamiche) e **migliorare nel tempo**
 tramite i ritrovamenti sul campo. Ambito: **Bolzano + Trento + Veneto**, cioè dove
-arrivano i layer tematici. 7 profili versionati — sei micorriziche di bosco e una
-saprotrofa di **ecotono** — più quelli creati online.
+arrivano i layer tematici. 9 profili versionati: sette micorriziche di bosco e due
+saprotrofe di **ecotono**. Dal 7 set 2026 git e volume del VPS coincidono — due profili
+vivevano solo nel volume, quindi nessun `validate` li aveva mai visti, e uno dei due era
+anti-predittivo senza che nessuno potesse accorgersene.
 
 **Come funziona, e da dove vengono i dati: [docs/COME-FUNZIONA.md](docs/COME-FUNZIONA.md).**
 Spec completa: `../ono-wiki/raw/strumenti/mappa-funghi-spec.md`. Deploy: `DEPLOY.md`.
@@ -19,7 +21,7 @@ Tutto è **per singola specie**: aggiungere una specie = aggiungere un profilo Y
 
 ## Struttura
 ```
-profiles/     7 profili (YAML) — il cuore dichiarativo (§7.1)
+profiles/     9 profili (YAML) — il cuore dichiarativo (§7.1)
 config/       grid.yaml (griglia comune, passo 200 m) · crosswalk.yaml (Ct_CFI → 20 classi host)
 engine/       motore species-agnostic: membership · static_scorer (gate host + habitat) ·
                 dynamic_scorer (readiness + fasi) · combiner · profiles

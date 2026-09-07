@@ -146,6 +146,44 @@ prato, mentre il fungo medio dell'AOI sta al 55.7% e 30.5%. Con `habitat: grassl
 terzo delle sue presenze note finirebbe sotto 0.1, con `habitat: forest` si vieterebbero i
 pascoli. Nessuna delle due è la specie: la specie è il margine fra le due.
 
+> **Questo peso il Boyce sa sceglierlo, e si vede dalla forma della curva.** Dopo il caso
+> del pavimento host conviene diffidare di ogni parametro che il metro «preferisce», quindi
+> il peso del bosco è stato spinto fino all'assurdo, con un controllo in cui tutte e dieci
+> le classi valgono 1, cioè nessun gate:
+>
+> | peso del bosco | 0.0 | 0.3 | 0.5 | 0.7 | 0.9 | 1.0 | **nessun gate** |
+> |---|---:|---:|---:|---:|---:|---:|---:|
+> | coprino | +0.450 | +0.715 | **+0.839** | +0.820 | +0.714 | +0.663 | +0.750 |
+> | mazza di tamburo | +0.865 | +0.962 | +0.977 | **+0.978** | +0.951 | +0.946 | +0.936 |
+>
+> Due curve unimodali con il massimo **dentro** l'intervallo, e in entrambe togliere il gate
+> è peggio dell'ottimo. È il comportamento opposto a quello del pavimento, che saliva fino
+> al bordo: lì il metro premiava l'assenza di vincoli, qui premia una forma. Il peso 0.7
+> della mazza di tamburo era stato scelto sulle fonti prima di misurarlo, e l'ottimo
+> misurato è 0.7.
+
+> **Il caso del coprino: un profilo può essere sbagliato per anni senza che nessuno lo
+> sappia.** `coprinus_comatus` e `amanita_muscaria` vivevano solo nel volume del VPS, fuori
+> da git, quindi nessun `validate` li aveva mai visti. Alla prima misura (7 set 2026) la
+> muscaria stava benissimo, +0.855; il coprino era a **−0.155 sull'intorno e −0.770 sul
+> pixel** con 275 punti, l'unica specie sotto zero, cioè un modello che manda a cercare dove
+> il fungo non è.
+>
+> Due cause, entrambe misurabili una alla volta. Il gate `grassland` secco metteva il **36%
+> delle sue presenze sotto 0.1**, perché il coprino è una specie di margini e terreni
+> disturbati: al pixel esatto i suoi punti stanno al 62% su bosco. E il tetto di quota a
+> 1200 m tagliava dentro il grosso delle segnalazioni, che hanno p90 a 1744 m. Corretto in
+> `{grassland 1.0, forest 0.5}` e `opt [200, 1700] max 2100`: **−0.155 → +0.808**.
+>
+> Due parametri sono stati provati e **scartati**, ed è la parte istruttiva. Il `built_up`
+> sembrava ovvio — il profilo stesso dice «parchi, giardini, bordi stradali» — ma da 0.0 a
+> 1.0 il Boyce si muove di tre centesimi, cioè rumore; e dare peso al costruito rischia di
+> far imparare al modello dove abitano i micologi. Il pavimento di quota a 400 m valeva
+> +0.878 contro +0.808, ma contro lo **sforzo di osservazione** il coprino non ha nessuna
+> preferenza di quota (mediana 1139 contro 1126 degli Agaricales) e in pianura è segnalato
+> più del fungo medio (p10 17 m contro 536). Quei sette centesimi si compravano codificando
+> il bias di chi registra, e non valgono il prezzo.
+
 **La canopia entra qui, di traverso.** Per le classi di conifera il peso dell'host viene
 moltiplicato per `canopy_alive`: dove la chioma è morta — Vaia, bostrico — la pecceta
 mappata nel 2020 non è più un ospite. È un reality-check agnostico alla causa, non un
