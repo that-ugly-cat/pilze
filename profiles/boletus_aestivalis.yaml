@@ -41,7 +41,9 @@ species:
     # Soglia rialzata allo STESSO percentile: la severita' non cambia.
     rain_window_days: 20
     cumulative_rain_mm: 51
-    thermal_shock_c: 4
+    # i 4 gradi stavano al p90 dello shock osservato nei mesi della specie:
+    # una soglia in cima alla distribuzione e' un veto, non un criterio. 1.5 = mediana.
+    thermal_shock_c: 1.5
     soil_temp_c: { min: 13, max: 24 }
     lag_days: { opt: [8, 15] }          # precoce / reattivo
     moisture_floor: 0.18
