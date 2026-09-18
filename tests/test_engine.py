@@ -277,3 +277,25 @@ def test_nessuna_buttata_viva_e_lista_vuota():
     assert flush_states(REG["boletus_edulis"], []) == []
     # gate del mese chiuso: gli inneschi ci sono ma nessuno produce uno stato
     assert flush_states(REG["boletus_edulis"], [_feat(month=1, days_since_trigger=14)]) == []
+
+
+def test_tardi_forte_batte_in_fieri_debole():
+    """Regressione dal pavimento di falsificazione (10 set 2026, m2200_325_2312).
+
+    Il finferlo aveva una `tardi` a dst 14 con readiness 0.904 e una `in_fieri` a dst 0
+    con readiness 0.032, perche' il lag a dst 0 vale zero. La prima regola scartava ogni
+    `tardi` in presenza di un non-`tardi` qualunque: la mappa diceva "sta arrivando" nel
+    giorno e nella cella in cui i finferli sono stati raccolti davvero.
+    """
+    from engine.dynamic_scorer import flush_states
+    finferlo = REG["cantharellus_cibarius"]                # lag_days.opt = [3, 12]
+    base = {"month": 9, "cumulative_rain_mm": 120, "soil_moisture": 0.30,
+            "soil_temp_c": 14, "thermal_shock_c": 3}
+    out = flush_states(finferlo, [{**base, "days_since_trigger": 0},     # in fieri, lag 0
+                                  {**base, "days_since_trigger": 14}])   # tardi, lag alto
+    assert out[0]["state"] == "tardi"
+    assert out[0]["readiness"] > out[1]["readiness"]
+    # ma quando il non-tardi vince davvero, il tardi torna a sparire
+    misto = flush_states(finferlo, [{**base, "days_since_trigger": 7},    # pronto, lag pieno
+                                    {**base, "days_since_trigger": 14}])  # tardi
+    assert [s["state"] for s in misto] == ["pronto"]

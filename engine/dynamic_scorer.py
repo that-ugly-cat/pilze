@@ -122,10 +122,20 @@ def flush_states(profile: SpeciesProfile, feats: list[dict],
 
     `tardi` esce dalla lista quando c'è di meglio. Con tutti gli inneschi sotto gli occhi
     compare quasi sempre (basta che sia piovuto dentro l'orizzonte) e smette di dire
-    qualcosa; resta quando è l'unica cosa viva, cioè quando vuol dire davvero «sei
-    arrivato tardi». Lista vuota = nessuna buttata, la cella non si disegna.
+    qualcosa. Ma **«di meglio» si misura sulla readiness, non sull'etichetta**: la prima
+    versione scartava ogni `tardi` appena esisteva un non-`tardi` qualunque, e il
+    pavimento di falsificazione sui ritrovamenti veri l'ha smentita il giorno dopo. Cella
+    m2200_325_2312, 10 set 2026, finferli raccolti sul serio: una `tardi` a dst 14 con
+    readiness 0.904 veniva sostituita da una `in_fieri` a dst 0 con readiness 0.032,
+    perché il fattore di lag a dst 0 vale zero. La mappa diceva «sta arrivando» dove il
+    modello stesso sapeva rispondere «c'è stata una buttata forte, sei appena fuori
+    finestra».
+
+    Quindi si ordina per readiness e i `tardi` cadono solo se qualcosa li supera davvero.
+    Lista vuota = nessuna buttata viva, la cella non si disegna.
     """
     out = [s for s in (readiness_state(profile, f, charge_thr) for f in feats) if s["state"]]
     out.sort(key=lambda s: -s["readiness"])
-    strong = [s for s in out if s["state"] != "tardi"]
-    return strong or out[:1]
+    if out and out[0]["state"] != "tardi":
+        out = [s for s in out if s["state"] != "tardi"]
+    return out
