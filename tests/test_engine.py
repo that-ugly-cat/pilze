@@ -230,3 +230,50 @@ def test_numero_scritto_male_non_viene_ingoiato():
     ok = _from_dict({"species": {"id": "t", "common_name": "t", "trophic_mode": "mycorrhizal",
                                  "host_genera": {"faggeta": 1.0}, "host_floor": "0.12"}})
     assert ok.host_floor == 0.12 and ok.validate() == []
+
+
+# --- piu' buttate nella stessa cella ------------------------------------------------ #
+
+def _feat(**kw):
+    """Feature meteo sintetica che passa gate e carica per l'edulis (lag [10,20])."""
+    base = {"month": 9, "cumulative_rain_mm": 90, "soil_moisture": 0.30,
+            "soil_temp_c": 14, "thermal_shock_c": 4}
+    return {**base, **kw}
+
+
+def test_flush_states_ordina_per_readiness_e_tiene_tutte_le_buttate():
+    from engine.dynamic_scorer import flush_states
+    edulis = REG["boletus_edulis"]                         # lag_days.opt = [10, 20]
+    out = flush_states(edulis, [_feat(days_since_trigger=2),      # in fieri
+                                _feat(days_since_trigger=14)])    # pronto
+    assert [s["state"] for s in out] == ["pronto", "in_fieri"]
+    assert out[0]["readiness"] >= out[1]["readiness"]
+
+
+def test_la_pioggia_nuova_non_cancella_piu_la_buttata_sotto():
+    """Il bug: con un solo days_since_trigger la cella tornava in_fieri e spariva."""
+    from engine.dynamic_scorer import flush_states, readiness_state
+    edulis = REG["boletus_edulis"]
+    solo_ultimo = readiness_state(edulis, _feat(days_since_trigger=1))
+    assert solo_ultimo["state"] == "in_fieri"              # cosa diceva prima
+    con_tutti = flush_states(edulis, [_feat(days_since_trigger=1),
+                                      _feat(days_since_trigger=13)])
+    assert con_tutti[0]["state"] == "pronto"               # cosa dice adesso
+    assert con_tutti[1]["state"] == "in_fieri"
+
+
+def test_tardi_sparisce_se_c_e_di_meglio_ma_resta_se_e_solo():
+    from engine.dynamic_scorer import flush_states
+    edulis = REG["boletus_edulis"]
+    misto = flush_states(edulis, [_feat(days_since_trigger=30),    # tardi
+                                  _feat(days_since_trigger=14)])   # pronto
+    assert [s["state"] for s in misto] == ["pronto"]
+    solo = flush_states(edulis, [_feat(days_since_trigger=30)])
+    assert [s["state"] for s in solo] == ["tardi"]
+
+
+def test_nessuna_buttata_viva_e_lista_vuota():
+    from engine.dynamic_scorer import flush_states
+    assert flush_states(REG["boletus_edulis"], []) == []
+    # gate del mese chiuso: gli inneschi ci sono ma nessuno produce uno stato
+    assert flush_states(REG["boletus_edulis"], [_feat(month=1, days_since_trigger=14)]) == []

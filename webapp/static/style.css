@@ -32,11 +32,14 @@ label.slabel span { color: #a01d78; font-weight: 600; }
 .states { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #556; margin-top: 5px; }
 .states span { display: flex; align-items: center; gap: 4px; }
 .states i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+#pronte-ctl .hint { font-size: 11px; margin: 5px 0 0; line-height: 1.35; }
 .pilze-grid { position: absolute; pointer-events: none; }
 /* tooltip unico: fucsia per lo statico, blu per il dinamico, nello stesso riquadro */
 .leaflet-tooltip.grid-tip { font-size: 12px; padding: 3px 8px; line-height: 1.45; }
 .leaflet-tooltip.grid-tip b { color: #d61f96; }
 .leaflet-tooltip.grid-tip b.dyn { color: #0077cc; }
+/* le altre buttate vive nella stessa cella: sottovoce, non compete con la dominante */
+.leaflet-tooltip.grid-tip .alt { color: #667; font-size: 11px; }
 #find-spots { width: 100%; margin: 6px 0 3px; }
 #find-hint { margin: 0 0 6px; }
 #status { font-size: 12px; color: #667; min-height: 18px; }

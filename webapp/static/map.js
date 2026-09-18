@@ -219,6 +219,19 @@ function describeAt(ll) {
       if (p.eta != null) s += ` · fra ~${p.eta} gg`;
       if (p.days_past != null) s += ` · ~${p.days_past} gg fa`;
       parts.push(s);
+      // Le altre buttate vive nella stessa cella: il quadrato ne mostra una sola, ma
+      // «pronto adesso e un'altra fra quattro giorni» è la cosa che decide se tornarci.
+      const altre = (p.flushes || []).slice(1).map(f => {
+        let t = STATE_LABEL[f.state] || f.state;
+        if (f.eta != null) t += ` fra ~${f.eta} gg`;
+        else if (f.days_past != null) t += ` ~${f.days_past} gg fa`;
+        return t;
+      });
+      if (altre.length || p.n_flushes > 1) {
+        const inneschi = p.n_flushes > 1 ? ` (${p.n_flushes} inneschi vivi)` : '';
+        const testa = altre.length ? `anche: ${altre.join(' · ')}` : 'una sola fase';
+        parts.push(`<span class="alt">${testa}${inneschi}</span>`);
+      }
     }
   }
   return parts.length ? parts.join('<br>') : null;
@@ -246,6 +259,21 @@ const STATE_LABEL = { in_fieri: 'in fieri', pronto: 'pronto', tardi: 'tardi' };
 map.createPane('pronte');
 map.getPane('pronte').style.zIndex = 450;                 // sopra il fucsia, sotto i pin
 const pronteRenderer = L.canvas({ pane: 'pronte' });
+// Il pallino della SECONDA buttata. Una cella può avere più buttate vive insieme (una
+// pronta e una in arrivo): il quadrato si colora con la dominante e il pallino segnala
+// che sotto c'è dell'altro, del colore del suo stato.
+map.createPane('pronte-dot');
+map.getPane('pronte-dot').style.zIndex = 455;
+const dotRenderer = L.canvas({ pane: 'pronte-dot' });
+// Il raggio segue la CELLA, non lo zoom in astratto: una frazione piccola del quadrato,
+// con un tetto e un pavimento. Un raggio fisso a 2.6 px è proporzionato a z11 (cella
+// 42 px) ma a z13 la cella è 166 px e il pallino diventa polvere.
+const DOT_FRAC = 0.075, DOT_MIN = 2.5, DOT_MAX = 9;
+// Sotto i 20 px la cella non regge un'annotazione dentro: a z8, la vista di default, il
+// quadrato da 2.2 km è 5 px. La soglia sta in pixel di cella e non in numero di zoom,
+// perché i pixel sono la cosa che decide davvero, e dipendono anche dalla latitudine.
+const DOT_MIN_CELL_PX = 20;
+let pronteDots = null, pronteCellLL = null;
 map.createPane('topspots');
 map.getPane('topspots').style.zIndex = 620;               // spot oro sopra TUTTI i layer
 const topRenderer = L.canvas({ pane: 'topspots' });
@@ -269,12 +297,65 @@ function pronteAt(ll) {
 }
 
 function applyPronteOpacity() {
-  map.getPane('pronte').style.opacity = document.getElementById('pronte-op').value;
+  const v = document.getElementById('pronte-op').value;
+  map.getPane('pronte').style.opacity = v;
+  map.getPane('pronte-dot').style.opacity = v;
 }
+
+// Lato della cella meteo in pixel di schermo, a questo zoom e a questa latitudine.
+function cellPx() {
+  if (!pronteCellLL) return 0;
+  const a = map.latLngToContainerPoint(pronteCellLL[0]);
+  const b = map.latLngToContainerPoint(pronteCellLL[1]);
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+// Un pallino al centro delle celle che hanno una seconda buttata di stato DIVERSO dal
+// dominante: stesso stato = stesso colore = pallino invisibile, quindi non si disegna.
+// Il filo bianco lo stacca dal riempimento, che è dello stesso blu e può stare a
+// qualunque opacità l'utente scelga.
+function buildDots(features) {
+  const pts = [];
+  pronteCellLL = null;
+  for (const f of features) {
+    const ring = f.geometry.coordinates[0];
+    if (!pronteCellLL && ring.length > 2) {
+      const lats = ring.map(p => p[1]), lons = ring.map(p => p[0]);
+      pronteCellLL = [L.latLng(Math.min(...lats), Math.min(...lons)),
+                      L.latLng(Math.max(...lats), Math.max(...lons))];
+    }
+    const st = f.properties.second_state;
+    if (!st) continue;
+    let x = 0, y = 0, n = 0;
+    for (let i = 0; i < ring.length - 1; i++) { x += ring[i][0]; y += ring[i][1]; n++; }
+    if (!n) continue;
+    pts.push(L.circleMarker([y / n, x / n], {
+      pane: 'pronte-dot', renderer: dotRenderer, interactive: false,
+      radius: DOT_MIN, fillColor: STATE_COLOR[st] || '#888', fillOpacity: 0.95,
+      stroke: true, color: '#fff', weight: 1, opacity: 0.85
+    }));
+  }
+  return pts.length ? L.layerGroup(pts) : null;
+}
+
+function syncDots() {
+  if (!pronteDots) return;
+  const px = cellPx();
+  const on = px >= DOT_MIN_CELL_PX && document.getElementById('l-pronte').checked;
+  if (on) {
+    const r = Math.max(DOT_MIN, Math.min(DOT_MAX, px * DOT_FRAC));
+    pronteDots.eachLayer(l => { if (l.getRadius() !== r) l.setRadius(r); });
+    if (!map.hasLayer(pronteDots)) pronteDots.addTo(map);
+  } else if (map.hasLayer(pronteDots)) {
+    map.removeLayer(pronteDots);
+  }
+}
+map.on('zoomend', syncDots);
 
 async function loadPronte() {
   const myReq = ++pronteReq;
   if (pronteLayer) { map.removeLayer(pronteLayer); pronteLayer = null; }
+  if (pronteDots) { map.removeLayer(pronteDots); pronteDots = null; }
   const on = document.getElementById('l-pronte').checked;
   document.getElementById('pronte-ctl').classList.toggle('off', !on);
   pronteData = [];
@@ -291,6 +372,8 @@ async function loadPronte() {
     interactive: false,
     style: f => ({ stroke: false, fillColor: STATE_COLOR[f.properties.state] || '#888', fillOpacity: 1 })
   }).addTo(map);
+  pronteDots = buildDots(gj.features);
+  syncDots();
   applyPronteOpacity();
 }
 

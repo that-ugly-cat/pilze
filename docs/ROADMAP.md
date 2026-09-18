@@ -59,11 +59,35 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
 - [x] **Coerenza finestra/lag nel validatore dei profili**: `rain_window_days` deve
       superare `lag_days.opt` max, altrimenti l'innesco esce dalla finestra proprio quando
       la specie sarebbe pronta. Ha trovato quattro profili sbagliati.
+      **Regola ritirata il 18 set 2026**: con la carica ancorata al suo innesco la finestra
+      lo contiene sempre, e il vincolo vietava finestre corte ormai legittime. I valori
+      gonfiati per soddisfarla sono ancora nei profili e vanno ritarati.
 - [x] **Intorno di 250 m in validazione** (default): un punto GBIF non ha la precisione di
       una cella da 200 m. Due specie cambiano segno.
-- [ ] **La carica va valutata alla data dell'innesco**, non a oggi: oggi carica e lag
-      guardano tempi diversi e si escludono, ed è il difetto strutturale dell'asse
-      dinamico. Non è un parametro, è la forma della domanda.
+- [x] **La carica va valutata alla data dell'innesco**, non a oggi (18 set 2026): carica e
+      lag guardavano tempi diversi e si escludevano, ed era il difetto strutturale
+      dell'asse dinamico. Non era un parametro, era la forma della domanda.
+
+## Più buttate nella stessa cella (18 set 2026) — vedi COME-FUNZIONA
+- [x] **Gli inneschi si contano tutti**, non solo l'ultimo: una pioggia nuova cancellava la
+      buttata già in corso. Pesava il 27.8% delle celle-giorno del porcino contro il 4.9%
+      di celle dichiarate pronte. `trigger_anchors` accorpa gli episodi di pioggia,
+      `features_per_flush` dà a ognuno la sua carica, `flush_states` le ordina.
+- [x] **`tardi` esce dal riempimento quando c'è di meglio**: guardando tutti gli inneschi
+      compariva nel 78% delle celle del porcino e aveva smesso di dire qualcosa.
+- [x] **Il pallino della seconda buttata** sulla mappa, da 20 px di cella in su, con il
+      raggio legato alla cella; il tooltip elenca le fasi vive e conta gli inneschi.
+- [ ] **Ritarare le soglie sul modello nuovo.** `CHARGE_THR`, `cumulative_rain_mm` e
+      `rain_window_days` sono tarati su un modello che vedeva un innesco solo, ed erano
+      tarati anche per compensarne il difetto. Il porcino passa da 1184 a 3900 celle
+      «pronto»: finché non si rifà, la mappa dice «pronto» più spesso di quanto sia stato
+      verificato che possa dirlo. È il primo lavoro da fare sull'asse dinamico.
+- [ ] **Decidere se il pallino va filtrato.** Compare su metà delle celle del porcino. Un
+      filtro a giorni è una trappola (`eta` non può superare `lag_days` min, quindi taglia
+      per specie e non per imminenza); l'unico sensato è sulla readiness comparabile. Da
+      decidere guardando la mappa vera, non l'archivio. Qualunque filtro deve però lasciar
+      passare il caso in cui il dominante è `in fieri` e la seconda è `pronto`: lì il
+      pallino corregge un colore sbagliato invece di aggiungere una nota.
 - [ ] Background forestato + CV a blocchi spaziali (§6.3): resta il limite noto del Boyce.
 
 ## I gate e il terreno (7 set 2026) — vedi COME-FUNZIONA

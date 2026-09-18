@@ -17,6 +17,8 @@ from datetime import date, datetime
 
 import json
 
+from engine.dynamic_scorer import TARDI_FACTOR
+
 API = "https://api.open-meteo.com/v1/dwd-icon"
 HOURLY = ["precipitation", "soil_temperature_6cm", "soil_moisture_3_to_9cm", "temperature_2m"]
 RAIN_TRIGGER_MM = 10.0        # pioggia giornaliera che conta come "trigger" di flush
@@ -95,6 +97,66 @@ def features_from_daily(profile, daily: list) -> dict:
             "soil_temp_c": round(soil_temp_now, 1) if soil_temp_now is not None else None,
             "thermal_shock_c": round(thermal_shock, 1),
             "days_since_trigger": dst}
+
+
+# --- Piu' buttate nella stessa cella (§4, §7.2) ------------------------------------ #
+
+TRIGGER_GAP_DAYS = 2      # piogge piu' vicine di cosi' sono lo stesso innesco, non due
+
+
+def trigger_anchors(daily: list, gap_days: int = TRIGGER_GAP_DAYS) -> list[int]:
+    """Indici degli inneschi in `daily`: un episodio di pioggia, non un giorno di pioggia.
+
+    I giorni sopra RAIN_TRIGGER_MM piu' vicini di `gap_days` sono lo stesso evento e
+    collassano su un'ancora sola, l'ULTIMO giorno del gruppo: il micelio risponde alla
+    bagnatura finita, non al primo scroscio. Senza accorpamento due giorni consecutivi da
+    15 mm sarebbero due buttate sfalsate di uno, che biologicamente non esistono.
+    """
+    out: list[int] = []
+    for k, d in enumerate(daily):
+        if (d[1] or 0) < RAIN_TRIGGER_MM:
+            continue
+        if out and k - out[-1] <= gap_days:
+            out[-1] = k
+        else:
+            out.append(k)
+    return out
+
+
+def features_per_flush(profile, daily: list) -> list[dict]:
+    """Una feature per buttata viva nella cella, dall'innesco piu' recente al piu' vecchio.
+
+    La CARICA (pioggia cumulata, shock termico, temperatura del suolo) e' calcolata alla
+    data del SUO innesco e non a oggi. E' la domanda giusta — *le condizioni erano buone
+    quando e' partita?* — e chiude la tensione fra carica e lag descritta in
+    docs/COME-FUNZIONA.md: chiedere «sta piovendo adesso E l'innesco e' di dieci giorni
+    fa» sono due condizioni che tendono a escludersi, e il modello le chiedeva insieme.
+
+    I GATE restano a oggi: mese corrente, e soprattutto umidita' del suolo, perche' un
+    terreno asciugatosi nel frattempo aborta la buttata comunque. Il lag e' la distanza
+    fra l'innesco e oggi. Effetto collaterale: `rain_window_days` non deve piu' essere
+    piu' lunga di `lag_days.max` per contenere l'innesco, e torna a essere il periodo di
+    bagnatura antecedente, che e' una quantita' con un significato.
+    """
+    if not daily:
+        return []
+    now = features_from_daily(profile, daily)
+    opt = (profile.dynamic_triggers.get("lag_days") or {}).get("opt")
+    if not opt:
+        return [now]
+    horizon = TARDI_FACTOR * float(opt[1])
+    last = len(daily) - 1
+    out = []
+    for a in reversed(trigger_anchors(daily)):
+        dst = last - a
+        if dst > horizon:
+            break
+        feat = dict(features_from_daily(profile, daily[:a + 1]))
+        feat["month"] = now["month"]
+        feat["soil_moisture"] = now["soil_moisture"]
+        feat["days_since_trigger"] = dst
+        out.append(feat)
+    return out
 
 
 # --- Archivio (spec §3.2, §9): si costruisce in avanti col poller (fetch_meteo) ---

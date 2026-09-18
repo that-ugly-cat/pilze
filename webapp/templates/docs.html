@@ -126,7 +126,9 @@
         <td><span class="badge">gate</span> sotto questa umidità del suolo la buttata aborta → 0.</td></tr>
       <tr><td><code>lag_days</code></td><td><code>{ opt: [a, b] }</code> giorni</td>
         <td>ritardo dopo il trigger in cui avviene la buttata. È la finestra <b>«pronto»</b>:
-          prima = <i>in fieri</i>, dentro = <i>pronto</i>, dopo (fino a 2·b) = <i>tardi</i>.</td></tr>
+          prima = <i>in fieri</i>, dentro = <i>pronto</i>, dopo (fino a 2·b) = <i>tardi</i>.
+          Ogni innesco ha la sua finestra: in una cella possono esserci più buttate insieme,
+          il quadrato prende quella più matura e il pallino segnala le altre.</td></tr>
     </table>
 
     <hr>
@@ -156,7 +158,7 @@
   phenology_months: [8, 9, 10, 11]
 
   dynamic_triggers:
-    rain_window_days: 25  # deve superare lag max, o l'innesco esce dalla finestra
+    rain_window_days: 25  # giorni di bagnatura antecedente all'innesco
     cumulative_rain_mm: 60
     soil_temp_c: { min: 8, max: 18 }
     thermal_shock_c: 2

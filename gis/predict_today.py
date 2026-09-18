@@ -19,7 +19,7 @@ import numpy as np
 import rasterio
 from pyproj import Transformer
 
-from engine.dynamic_scorer import readiness, readiness_state
+from engine.dynamic_scorer import flush_states, readiness
 from engine.profiles import load_profiles
 
 from . import grid, meteo
@@ -51,16 +51,34 @@ def predict(species: str, static_thr: float = 0.4):
     conn = meteo.connect()
     feats = []
     counts = {"in_fieri": 0, "pronto": 0, "tardi": 0}
+    n_second = 0
     for col, row in cand:
         mcid = f"m{int(mstep)}_{col}_{row}"
         daily = meteo.read_daily(mcid, conn)
         if not daily:
             continue                                   # cella non nell'archivio (non pollata)
-        st = readiness_state(prof, meteo.features_from_daily(prof, daily))
-        if not st["state"]:
-            continue
+        flushes = flush_states(prof, meteo.features_per_flush(prof, daily))
+        if not flushes:
+            continue                                   # nessuna buttata viva in questa cella
+        st = flushes[0]                                # la dominante decide il colore del quadrato
         counts[st["state"]] += 1
         props = {k: st[k] for k in ("state", "readiness", "charge", "dst", "eta", "days_past") if k in st}
+        # Una voce per STATO, la migliore: tre inneschi dentro la stessa finestra sono tre
+        # buttate vere ma un tooltip che dice «pronto · pronto · pronto» non informa
+        # nessuno, e il modello non sostiene che tre buttate insieme facciano più funghi.
+        # Il conto degli inneschi resta in n_flushes, che è il dato grezzo.
+        best: dict[str, dict] = {}
+        for f in flushes:                              # già ordinate per readiness
+            best.setdefault(f["state"], f)
+        props["flushes"] = [{k: f[k] for k in ("state", "readiness", "dst", "eta", "days_past")
+                             if k in f} for f in best.values()]
+        props["n_flushes"] = len(flushes)
+        # Il pallino segnala la prima buttata con uno STATO diverso dal dominante: stesso
+        # stato vuol dire stesso colore, cioè un pallino invisibile.
+        second = next((f for f in flushes[1:] if f["state"] != st["state"]), None)
+        if second:
+            props["second_state"] = second["state"]
+            n_second += 1
         feats.append({"type": "Feature", "properties": props,
                       "geometry": {"type": "Polygon", "coordinates": [grid.cell_polygon(mcid)]}})
     conn.close()
@@ -68,7 +86,8 @@ def predict(species: str, static_thr: float = 0.4):
     out = MAPS_DIR / f"pronte_oggi_{species}.geojson"
     out.write_text(json.dumps({"type": "FeatureCollection", "features": feats}), encoding="utf-8")
     print(f"{species}: celle meteo candidate {len(cand)}  |  "
-          f"in_fieri {counts['in_fieri']} · pronto {counts['pronto']} · tardi {counts['tardi']}")
+          f"in_fieri {counts['in_fieri']} · pronto {counts['pronto']} · tardi {counts['tardi']}"
+          f"  |  con una seconda buttata di stato diverso: {n_second}")
     return counts
 
 
@@ -109,7 +128,12 @@ def top_spots(species: str, mode: str = "both", k: int = 50, static_thr: float =
         mcid = f"m{int(mstep)}_{math.floor(gx / mstep)}_{math.floor(gy / mstep)}"
         if mcid not in read_cache:
             daily = meteo.read_daily(mcid, conn)
-            read_cache[mcid] = readiness(prof, meteo.features_from_daily(prof, daily)) if daily else 0.0
+            # La MIGLIORE delle buttate vive, non l'ultima pioggia: altrimenti la classifica
+            # scarterebbe le celle appena ripiovute che la mappa disegna pronte.
+            per_flush = meteo.features_per_flush(prof, daily) if daily else []
+            read_cache[mcid] = max((readiness(prof, f) for f in per_flush),
+                                   default=readiness(prof, meteo.features_from_daily(prof, daily))
+                                   if daily else 0.0)
         return read_cache[mcid]
 
     dedup_m = 1500.0                               # ≤ 1 spot per ~1.5 km → spot distinti

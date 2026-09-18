@@ -67,6 +67,13 @@ Dockerfile · docker-compose.yml · DEPLOY.md
 - **Dinamico (QUANDO):** meteo **ICON-D2 via Open-Meteo** (batching multi-località) → feature §4 →
   readiness; poller notturno + archivio SQLite (**backfill incrementale** + gap-detector). La fase
   della buttata per cella meteo: **in fieri / pronto / tardi** (da days_since_trigger vs lag_days).
+  Dal 18 set 2026 gli inneschi si contano **tutti**, non solo l'ultimo: in una cella possono
+  esserci più buttate insieme, ognuna con la carica calcolata alla data del **suo** innesco.
+  Il quadrato prende la più matura, un pallino segnala che sotto c'è dell'altro. Prima una
+  pioggia nuova cancellava la buttata in corso, e pesava: per il porcino il 27.8% delle
+  celle-giorno contro il 4.9% di celle dichiarate pronte. **Nessun conteggio di «celle
+  pronte» anteriore al 18 set 2026 è confrontabile con uno successivo**, e le soglie sono
+  ancora quelle tarate sul modello vecchio. Dettaglio in `docs/COME-FUNZIONA.md`.
 - **Interfaccia:** web app — mappa topo con **idoneità statica** (fucsia), **idoneità dinamica**
   (quadrati per fase), **ritrovamenti**, **confini area dati** (BZ+TN+VE, spiega dove si ferma
   l'idoneità), e **"trova spot migliori"** (top-50 per specie: statica /

@@ -109,3 +109,23 @@ def readiness_state(profile: SpeciesProfile, feat: dict, charge_thr: float = CHA
     elif dst <= TARDI_FACTOR * lmax:
         out["state"], out["days_past"] = "tardi", int(round(dst - lmax))
     return out
+
+
+def flush_states(profile: SpeciesProfile, feats: list[dict],
+                 charge_thr: float = CHARGE_THR) -> list[dict]:
+    """Le buttate VIVE in una cella, dalla più matura alla meno. Lista, non stato singolo.
+
+    `feats` è una feature per innesco, stesso giorno e stessa cella (le costruisce
+    `gis.meteo.features_per_flush`). Prima esisteva un solo `days_since_trigger`, quello
+    dell'ultima pioggia: una buttata già in corso spariva dalla mappa appena ripioveva,
+    e la cella tornava a dire `in_fieri` con un'ETA che non c'entrava niente.
+
+    `tardi` esce dalla lista quando c'è di meglio. Con tutti gli inneschi sotto gli occhi
+    compare quasi sempre (basta che sia piovuto dentro l'orizzonte) e smette di dire
+    qualcosa; resta quando è l'unica cosa viva, cioè quando vuol dire davvero «sei
+    arrivato tardi». Lista vuota = nessuna buttata, la cella non si disegna.
+    """
+    out = [s for s in (readiness_state(profile, f, charge_thr) for f in feats) if s["state"]]
+    out.sort(key=lambda s: -s["readiness"])
+    strong = [s for s in out if s["state"] != "tardi"]
+    return strong or out[:1]

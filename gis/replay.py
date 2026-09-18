@@ -22,7 +22,8 @@ import sys
 from collections import Counter, defaultdict
 from datetime import date
 
-from engine.dynamic_scorer import CHARGE_THR, TARDI_FACTOR, readiness, readiness_state
+from engine.dynamic_scorer import (CHARGE_THR, TARDI_FACTOR, flush_states, readiness,
+                                   readiness_state)
 from engine.profiles import load_profiles
 
 from . import grid, meteo
@@ -69,13 +70,21 @@ def replay_species(profile, archive: dict[str, list], cells: list[str]) -> dict:
     per_day_any: Counter[date] = Counter()
     factor_sum = defaultdict(float)
     n_eval = 0
+    n_multi = 0
 
     for cid in cells:
         daily = archive[cid]
         for i in range(MIN_HISTORY_DAYS, len(daily)):
             window = daily[:i + 1]
-            feat = meteo.features_from_daily(profile, window)
-            st = readiness_state(profile, feat)
+            # Stessa strada della produzione: tutte le buttate vive, non solo l'ultima
+            # pioggia. Il veto continua a spiegare l'innesco piu' recente, cosi' la
+            # colonna «vincolo che blocca» resta leggibile accanto a quella di prima.
+            per_flush = meteo.features_per_flush(profile, window)
+            feat = per_flush[0] if per_flush else meteo.features_from_daily(profile, window)
+            flushes = flush_states(profile, per_flush)
+            st = flushes[0] if flushes else readiness_state(profile, feat)
+            if len(flushes) > 1:
+                n_multi += 1
             _, bd = readiness(profile, feat, breakdown=True)
             n_eval += 1
             day = window[-1][0]
@@ -90,7 +99,7 @@ def replay_species(profile, archive: dict[str, list], cells: list[str]) -> dict:
                 states["(niente)"] += 1
                 vetoes[binding_constraint(profile, feat, bd, st["charge"])] += 1
 
-    return {"n_eval": n_eval, "states": states, "vetoes": vetoes,
+    return {"n_eval": n_eval, "states": states, "vetoes": vetoes, "n_multi": n_multi,
             "per_day_pronto": per_day_pronto, "per_day_any": per_day_any,
             "factor_mean": {k: v / n_eval for k, v in factor_sum.items()} if n_eval else {}}
 
@@ -104,6 +113,7 @@ def print_report(sid: str, r: dict) -> None:
     for k in ("pronto", "in_fieri", "tardi", "(niente)"):
         c = r["states"][k]
         print(f"    {k:10s} {c:8,}  ({c / n:6.2%})")
+    print(f"    con piu' di una buttata viva: {r['n_multi']:,}  ({r['n_multi'] / n:6.2%})")
     days = sorted(r["per_day_any"])
     lit = [d for d in days if r["per_day_pronto"][d]]
     print(f"    giorni simulati: {len(days)}  |  con almeno una cella PRONTO: {len(lit)}"
@@ -121,10 +131,14 @@ def timeline(profile, daily: list) -> None:
           f"{'dst':>4s} {'ready':>6s} {'carica':>7s}  stato / veto")
     for i in range(MIN_HISTORY_DAYS, len(daily)):
         window = daily[:i + 1]
-        feat = meteo.features_from_daily(profile, window)
-        st = readiness_state(profile, feat)
+        per_flush = meteo.features_per_flush(profile, window)
+        feat = per_flush[0] if per_flush else meteo.features_from_daily(profile, window)
+        flushes = flush_states(profile, per_flush)
+        st = flushes[0] if flushes else readiness_state(profile, feat)
         _, bd = readiness(profile, feat, breakdown=True)
         why = st["state"] or binding_constraint(profile, feat, bd, st["charge"])
+        if len(flushes) > 1:
+            why += "  (+ " + " ".join(f"{f['state']}@{f['dst']}" for f in flushes[1:]) + ")"
         print(f"{window[-1][0]!s:12s} {feat['cumulative_rain_mm']:9.1f} "
               f"{feat['soil_moisture'] if feat['soil_moisture'] is not None else float('nan'):6.3f} "
               f"{feat['soil_temp_c'] if feat['soil_temp_c'] is not None else float('nan'):7.1f} "

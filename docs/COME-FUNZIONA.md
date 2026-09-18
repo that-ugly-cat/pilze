@@ -179,6 +179,27 @@ Se la carica passa, la **fase** viene dal confronto fra `days_since_trigger` e l
 Il lag è, per ammissione della spec, il parametro più incerto del modello. È anche l'unico
 che alla prima verifica di campo ha avuto ragione (vedi il README).
 
+### Più buttate nella stessa cella
+
+Una cella non ha una fase sola. In quaranta giorni di settembre alpino piove più volte, e
+ogni episodio di pioggia accende una buttata per conto suo: quando la mappa disegna un
+quadrato, lì sotto possono esserci contemporaneamente una buttata matura e una che deve
+ancora uscire. `trigger_anchors` trova gli inneschi — episodi di pioggia, non giorni di
+pioggia: giorni sopra soglia più vicini di due si accorpano su un'ancora sola, l'**ultimo**
+del gruppo, perché il micelio risponde alla bagnatura finita e non al primo scroscio.
+`features_per_flush` costruisce una feature per ognuno e `flush_states` le valuta tutte.
+
+Il quadrato prende il colore della buttata con la readiness più alta; un **pallino** al
+centro segnala che ce n'è un'altra di stato diverso, del colore del suo stato, e il
+tooltip le elenca. Il pallino compare solo da una ventina di pixel di cella in su: a z8,
+la vista di default, il quadrato da 2.2 km è sei pixel e un'annotazione dentro non si
+legge.
+
+Una conseguenza che vale la pena sapere: **`tardi` esce dal riempimento quando c'è di
+meglio**. Guardando tutti gli inneschi compare quasi sempre — basta che sia piovuto dentro
+l'orizzonte — e smette di dire qualcosa. Resta il colore della cella solo quando è l'unica
+buttata viva, che è il caso in cui vuol dire davvero «sei arrivato tardi».
+
 ### La carica misura adesso, il lag misura allora
 
 C'è una tensione dentro questa formula, e si vede in un numero che non torna. Rigirando
@@ -211,12 +232,21 @@ fino alla finestra del lag. Le tarature fatte finora restano difendibili — una
 percentile 100 è indifendibile in ogni caso — ma una parte del miglioramento sta
 compensando un difetto di struttura invece di correggere un prior.
 
-**La forma giusta della domanda** sarebbe: *le condizioni erano buone al momento
-dell'innesco, e da allora sono passati dieci-venti giorni?* Cioè valutare la carica **alla
-data del trigger** e non a oggi, tenendo semmai un controllo separato che nel frattempo non
-sia arrivata una siccità capace di abortire la buttata — che è esattamente ciò che il campo
-`old_reason: abortito` serve a registrare. È una modifica a `readiness_state`, non a un
-parametro, e non è ancora fatta.
+**La forma giusta della domanda** è: *le condizioni erano buone al momento dell'innesco, e
+da allora sono passati dieci-venti giorni?* Cioè valutare la carica **alla data del
+trigger** e non a oggi, tenendo un controllo separato che nel frattempo non sia arrivata
+una siccità capace di abortire la buttata — che è esattamente ciò che il campo
+`old_reason: abortito` serve a registrare.
+
+**Fatta il 18 set 2026**, insieme al multi-innesco. `features_per_flush` calcola pioggia
+cumulata, shock termico e temperatura del suolo alla data dell'innesco; mese e
+`moisture_floor` restano a oggi, perché un terreno asciugatosi nel frattempo aborta la
+buttata comunque. Effetto collaterale che semplifica i profili: `rain_window_days` non deve
+più essere più lunga di `lag_days.max` per contenere l'innesco — il commento «25 e non 15,
+la finestra deve contenere la pioggia che ha innescato la buttata» compare in tre profili
+ed era un cerotto su questo difetto. Ora la finestra torna a essere il periodo di bagnatura
+antecedente, che è una quantità con un significato suo, e i due parametri si scollegano.
+Vanno ritarati di conseguenza, e non è ancora stato fatto.
 
 ---
 
@@ -499,10 +529,15 @@ Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o n
   del disponibile ma solo l'8.3% delle segnalazioni: chi registra funghi lo fa in montagna.
   Ogni Boyce di una specie di bassa quota va letto sapendolo, e l'estatino ne è il caso
   limite (vedi sopra).
-- **La carica e il lag guardano tempi diversi** (vedi sopra): il primo è la cosa da
-  sistemare nell'asse dinamico, e non è un parametro ma la forma della domanda.
 - **`RAIN_TRIGGER_MM = 10` è una costante di modulo**, non un campo di profilo: la
   definizione stessa di «innesco» non è tarabile per specie, mentre tutto il resto lo è.
+  Da quando gli inneschi si contano tutti, con lei conta anche `TRIGGER_GAP_DAYS = 2`, che
+  decide quando due piogge sono lo stesso evento: stessa natura, stessa obiezione.
+- **Le soglie sono tarate su un modello che vedeva un innesco solo.** Col multi-innesco
+  (18 set 2026) il modello è molto più permissivo — il porcino passa da 1184 a 3900 celle
+  «pronto» sull'ultimo giorno d'archivio, ×3.3 — e `CHARGE_THR`, `cumulative_rain_mm` e
+  `rain_window_days` vanno riguardati con questo davanti. Finché non succede, la mappa dice
+  «pronto» più spesso di quanto il modello sia stato verificato a dirlo.
 
 ---
 
@@ -513,6 +548,40 @@ sta sopra — ma perché è così, e soprattutto **quali numeri non sono confron
 quali**. Le due cose che si imparano leggendolo: che un parametro «preferito» dal Boyce va
 spinto fino all'assurdo prima di crederci, e che un profilo può essere sbagliato a lungo
 senza che nessuno se ne accorga, se nessuno lo misura.
+
+### La pioggia nuova cancellava la buttata sotto
+
+Fino al 18 set 2026 `days_since_trigger` era uno solo: i giorni dall'**ultima** pioggia
+sopra i 10 mm. Una riga, un `break` scandendo la serie all'indietro. Conseguenza: appena
+ripioveva, la buttata già in corso smetteva di esistere — non veniva coperta nella viz,
+veniva proprio cancellata a monte, e la cella tornava a dire `in fieri` con una stima di
+giorni che non c'entrava niente.
+
+Quanto pesava, misurato sull'archivio con i gate veri: per il **porcino il 27.8% delle
+celle-giorno** aveva un innesco dentro la finestra [10,20] che il modello non guardava,
+contro il 4.9% di celle dichiarate pronte. Più di cinque buttate nascoste per ogni buttata
+mostrata. Per la mazza di tamburo 33.7% contro 18.8%, per il finferlo 13.2% contro 16.2%.
+La ragione è geometrica: l'orizzonte del porcino è di quaranta giorni e in quaranta giorni
+di settembre alpino dieci millimetri cadono più volte.
+
+Adesso gli inneschi si contano tutti (`trigger_anchors` → `features_per_flush` →
+`flush_states`) e ognuno porta la sua carica, calcolata alla sua data. Gli inneschi vivi
+per cella arrivano a nove, e la distribuzione degli stati compresenti dice una cosa che non
+era prevista: il caso modale del porcino era **tre stati insieme** (40.4%), perché `tardi`
+compariva nel 78% delle celle. Nel modello a innesco singolo `tardi` voleva dire «l'unico
+innesco che ho è vecchio»; guardandoli tutti vuol dire «negli ultimi quaranta giorni ha
+piovuto», che è quasi sempre vero. Per questo esce dal riempimento quando c'è di meglio:
+non è una scelta grafica, è che aveva smesso di portare informazione.
+
+**I numeri da non confrontare.** Tutto il replay e ogni conteggio di «celle pronte» di
+prima del 18 set 2026 vengono da un modello che guardava un innesco solo. Sull'ultimo
+giorno d'archivio (6 set), celle `pronto`: porcino 1184 → 3900, pinophilus 892 → 3402,
+aereus 681 → 2640, finferlo 928 → 1510, mazza 2161 → 2551. Il modello è molto più
+permissivo, e **le soglie tarate prima erano tarate anche per compensare questo difetto**:
+la sezione «La carica misura adesso, il lag misura allora» lo diceva già, che una parte del
+guadagno delle tarature stava tappando un buco di struttura invece di correggere un prior.
+Vanno rifatte. Finché non lo sono, la mappa dice «pronto» più spesso di quanto sia stato
+verificato che possa dirlo.
 
 ### Il drenaggio smette di essere una costante
 

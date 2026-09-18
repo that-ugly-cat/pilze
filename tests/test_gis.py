@@ -110,3 +110,61 @@ def test_edge_density_conta_solo_i_confini_bosco_prato():
     con_seminativo = tutto_bosco.copy()
     con_seminativo[:, 5:] = 40
     assert W._edge_pixels(con_seminativo) == 0
+
+
+# --- inneschi multipli: episodi di pioggia e carica ancorata ------------------------ #
+
+def _serie(rain_by_day: dict, n: int = 40, temp=14.0, moist=0.30):
+    """n giorni consecutivi; rain_by_day mappa «giorni fa» → mm caduti quel giorno."""
+    from datetime import date, timedelta
+    oggi = date(2026, 9, 15)
+    return [(oggi - timedelta(days=n - 1 - i),
+             float(rain_by_day.get(n - 1 - i, 0.0)), temp, moist) for i in range(n)]
+
+
+def test_episodio_di_pioggia_e_un_innesco_solo_ancorato_alla_fine():
+    from gis import meteo
+    # tre giorni consecutivi sopra soglia = una bagnatura, non tre buttate
+    anc = meteo.trigger_anchors(_serie({14: 15.0, 13: 20.0, 12: 12.0}))
+    assert len(anc) == 1
+    assert anc[0] == 40 - 1 - 12                   # l'ultimo giorno del gruppo
+    # due episodi separati da una settimana restano due
+    assert len(meteo.trigger_anchors(_serie({20: 15.0, 5: 18.0}))) == 2
+
+
+def test_pioggia_sotto_soglia_non_innesca():
+    from gis import meteo
+    assert meteo.trigger_anchors(_serie({10: 9.9})) == []
+
+
+def test_features_per_flush_vede_la_buttata_che_l_ultima_pioggia_nascondeva():
+    from engine import load_profiles
+    from gis import meteo
+    edulis = load_profiles()["boletus_edulis"]     # lag_days.opt = [10, 20]
+    daily = _serie({13: 30.0, 1: 25.0})            # innesco vecchio + pioggia di ieri
+    assert meteo.features_from_daily(edulis, daily)["days_since_trigger"] == 1
+    dsts = [f["days_since_trigger"] for f in meteo.features_per_flush(edulis, daily)]
+    assert dsts == [1, 13]                         # la piu' recente per prima, ma ci sono entrambe
+
+
+def test_la_carica_e_del_suo_innesco_i_gate_sono_di_oggi():
+    from engine import load_profiles
+    from gis import meteo
+    edulis = load_profiles()["boletus_edulis"]     # rain_window_days = 25
+    daily = _serie({30: 80.0, 13: 30.0, 1: 12.0})  # un diluvio fuori dalla finestra di oggi
+    per_flush = meteo.features_per_flush(edulis, daily)
+    vecchia = next(f for f in per_flush if f["days_since_trigger"] == 13)
+    oggi = meteo.features_from_daily(edulis, daily)
+    # al 13esimo giorno fa la finestra conteneva ancora il diluvio: cumulata piu' alta di oggi
+    assert vecchia["cumulative_rain_mm"] > oggi["cumulative_rain_mm"]
+    # il gate dell'umidita' invece guarda adesso, perche' un suolo asciutto aborta comunque
+    assert vecchia["soil_moisture"] == oggi["soil_moisture"]
+
+
+def test_gli_inneschi_oltre_l_orizzonte_non_sono_piu_vivi():
+    from engine import load_profiles
+    from gis import meteo
+    edulis = load_profiles()["boletus_edulis"]     # orizzonte = 2 x 20 = 40 giorni
+    daily = _serie({50: 40.0, 5: 20.0}, n=60)
+    dsts = [f["days_since_trigger"] for f in meteo.features_per_flush(edulis, daily)]
+    assert dsts == [5]

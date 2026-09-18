@@ -118,17 +118,14 @@ class SpeciesProfile:
             errs.append(f"{self.id}: host_floor {self.host_floor} ≥ del peso host più basso: "
                         f"l'ospite sbagliato varrebbe quanto uno buono")
 
-        # Coerenza fra finestra di pioggia e lag: la finestra deve contenere la pioggia
-        # che ha innescato la buttata che si sta valutando. Se `rain_window_days` non
-        # supera il lag massimo, una cella valutata a fine finestra vede una pioggia
-        # cumulata da cui l'innesco è già uscito, e la specie risulta secca proprio nei
-        # giorni in cui dovrebbe essere pronta. Serve stretto: la somma prende gli ultimi
-        # `win` giorni, cioè da d-(win-1) a d, quindi un trigger a dst = win resta fuori.
-        win = self.dynamic_triggers.get("rain_window_days")
-        opt = (self.dynamic_triggers.get("lag_days") or {}).get("opt")
-        if win and opt and len(opt) == 2 and win <= float(opt[1]):
-            errs.append(f"{self.id}: rain_window_days ({win}) non supera lag_days.opt max "
-                        f"({opt[1]}) — l'innesco esce dalla finestra proprio quando serve")
+        # NOTA (18 set 2026) — qui c'era una regola: `rain_window_days` DEVE superare
+        # `lag_days.opt` max, altrimenti una cella valutata a fine finestra vedeva una
+        # cumulata da cui l'innesco era già uscito, e la specie risultava secca proprio
+        # nei giorni in cui doveva essere pronta. Era vera finché la carica si calcolava
+        # a oggi. Da quando `gis.meteo.features_per_flush` la calcola alla data del SUO
+        # innesco (la finestra finisce lì, quindi lo contiene sempre) il vincolo è caduto,
+        # e tenerlo significherebbe vietare finestre corte che adesso sono legittime.
+        # I valori nei profili restano quelli gonfiati per soddisfarla: vanno ritarati.
         return errs
 
 
