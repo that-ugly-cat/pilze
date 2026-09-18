@@ -443,6 +443,44 @@ nero 4, ovolo 17, porcino rosso 24) danno numeri instabili: si guardano solo per
 E lo stesso profilo misurato su due campioni di background diversi si sposta di qualche
 centesimo, quindi differenze sotto ~0.05 non vogliono dire niente.
 
+### Il metro dell'asse dinamico: sa anche *quando*?
+
+Fino al 18 set 2026 l'asse dinamico non aveva un metro. Il Boyce di `gis.validate` misura
+l'idoneità **spaziale** contro le presenze GBIF, `gis/replay.py` falsifica senza validare,
+e i ritrovamenti di campo erano sette. Ogni soglia dinamica era quindi scelta contro
+un'intuizione. `gis/validate_dynamic.py` è la controparte temporale.
+
+**Il disegno sta tutto nel background**, ed è la trappola qui sopra in versione temporale.
+Confrontare le presenze con celle-giorno pescate ovunque rimisura l'asse spaziale: il
+punteggio sale perché la mappa statica è buona. Quindi il background è la **stessa cella in
+date diverse della stessa stagione**, con una guardia di ±7 giorni attorno al ritrovamento
+perché la sua stessa buttata non vi rientri. La posizione è costante per costruzione e
+l'unica cosa che varia è il giorno.
+
+**Le date c'erano e non le stavamo prendendo:** `fetch_occurrences` teneva solo l'anno.
+Con `eventDate` sono **3.105 record datati su 3.234**, di cui 1.464 dentro AOI e nei mesi
+di fenologia — 312 per il porcino, 361 per la mazza, 255 per il finferlo. Restano rumore
+aereus (3), pinophilus e ovolo (13), come già sull'asse statico.
+
+**Il meteo storico viene da ERA5** (archivio Open-Meteo, ~25 km), perché ICON-D2 esiste
+solo in avanti dal giorno in cui è partito il poller mentre i ritrovamenti vanno indietro
+di decenni. Le due sorgenti non sono intercambiabili: su celle e giorni appaiati ERA5 è più
+caldo di 0.3–2.4 °C nel suolo e più secco di 0.04–0.11 di umidità, ma sulla distribuzione
+marginale è più **umido** (mediana 0.315 contro 0.204). Non è una contraddizione: le due
+popolazioni di celle e stagioni non sono le stesse. La conseguenza pratica è che **una
+conversione di percentile fra le due sorgenti non è affidabile**, e non va fatta.
+
+**Primo risultato (finferlo, 352 presenze, 4.224 giorni di background): Boyce +0.617**,
+dello stesso ordine del suo Boyce statico. Col gate dell'umidità spento crolla a +0.096, e
+la mediana della readiness sui giorni a caso sale a 0.827: satura, e **niente può ordinare
+giorni che valgono quasi tutti uno**. Vedi la voce su `moisture_floor` fra i difetti noti.
+
+Due cautele prima di trasportare il numero in produzione. Il gate assoluto funziona su ERA5
+anche *per caso*, perché ERA5 è più umido e lo stesso 0.25 vi cade a un percentile più
+basso; in produzione gira ICON. E la data GBIF è quella di **registrazione**: chi raccoglie
+posta il giorno stesso o il giorno dopo, il che gioca a favore, ma il bias di quota misurato
+sull'asse statico ha un gemello temporale che non è stato misurato.
+
 ### La trappola del Boyce: il «disponibile» decide il risultato
 
 `E` dipende da cosa si considera disponibile, e questo cambia il numero più di quanto lo
@@ -511,10 +549,20 @@ Onestà prima di eleganza: queste sono le cose che il modello, oggi, sbaglia o n
 - **I priori sono priori.** Nessuno di questi numeri è stato addestrato. Sono conoscenza
   esperta scritta in YAML, e la prima verifica sul campo (6 set 2026) ne ha falsificato uno
   in modo netto. Il dettaglio sta nel README.
-- **`moisture_floor` è un parametro del tipo sbagliato.** Confronta un contenuto d'acqua
-  volumetrico assoluto fra celle con suoli diversi, ma l'umidità di ICON-D2 dipende dalla
-  tessitura assegnata al box: 0.149 su un podsol non è la stessa siccità che su un'argilla.
-  Va sostituito da un indice **relativo** alla storia della cella.
+- **`moisture_floor` è un parametro del tipo sbagliato, ed è anche quello che porta il
+  segnale.** Confronta un contenuto d'acqua volumetrico assoluto fra celle con suoli
+  diversi, ma l'umidità di ICON-D2 dipende dalla tessitura assegnata al box: 0.149 su un
+  podsol non è la stessa siccità che su un'argilla. Misurato il 18 set 2026 su 5.797 celle
+  con almeno trenta giorni di storia: il gate è **inerte** (non veta mai) nel **60.4%**
+  delle celle per il porcino, nel 43.1% per la mazza, nel 32.4% per l'ovolo; solo per il
+  finferlo discrimina quasi ovunque (93.0%). Le celle dove veta *sempre* sono invece poche
+  (0.0–3.1%), quindi non è un blackout: è un parametro che per metà del parco non fa
+  niente e per l'altra metà fa cose diverse a seconda del suolo.
+  E però il metro temporale dice che è **il principale portatore di segnale**: spegnendolo
+  il Boyce del finferlo crolla da +0.62 a +0.10 e la readiness satura. Un indice
+  **relativo** alla storia della cella resta la cura giusta, ma la prima prova (al p82,
+  cioè il percentile che 0.25 occupa dentro le celle ICON) è troppo severa e dà +0.12.
+  Adesso il percentile giusto si può cercare con una metrica invece che a intuito.
 - **Il drenaggio adesso c'è, ma è una proxy topografica**, non una misura del suolo: dice
   dove l'acqua *tende* ad andare, non quanta ne trattiene quel terreno. Un fondo di conca
   su ghiaia e uno su argilla escono uguali, e sotto i 20 m di rilievo il fattore tace del

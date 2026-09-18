@@ -77,6 +77,17 @@ Ordine di costruzione (spec §8). Stato: **MVP end-to-end**, ritagliato sull'AOI
       compariva nel 78% delle celle del porcino e aveva smesso di dire qualcosa.
 - [x] **Il pallino della seconda buttata** sulla mappa, da 20 px di cella in su, con il
       raggio legato alla cella; il tooltip elenca le fasi vive e conta gli inneschi.
+- [x] **Un metro per l'asse dinamico** (18 set 2026), che non ne aveva mai avuto uno:
+      `gis/validate_dynamic.py`. Background = stessa cella, date diverse, guardia ±7 giorni;
+      presenze GBIF datate (3.105 su 3.234, le date c'erano e non le prendevamo) e meteo
+      storico ERA5. Finferlo: **Boyce +0.617**, dello stesso ordine del suo Boyce statico.
+- [ ] **Girarlo su tutte le specie.** Fatto solo il finferlo: il resto si è fermato sul
+      limite ORARIO dell'archivio Open-Meteo, che è la stessa quota del poller di
+      produzione. Da riprendere a quota fresca, meglio se fuori dall'orario del poller.
+- [ ] **Il percentile giusto per un `moisture_floor` relativo.** Il gate assoluto porta il
+      grosso del segnale (+0.62 contro +0.096 da spento) ma è inerte nel 60% delle celle per
+      il porcino e funziona su ERA5 anche per caso. La versione relativa al p82 è troppo
+      severa (+0.12). Adesso il percentile si può cercare con una metrica.
 - [ ] **Ritarare le soglie sul modello nuovo.** `CHARGE_THR`, `cumulative_rain_mm` e
       `rain_window_days` sono tarati su un modello che vedeva un innesco solo, ed erano
       tarati anche per compensarne il difetto. Il porcino passa da 1184 a 3900 celle
