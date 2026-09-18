@@ -23,17 +23,21 @@ dove ERA5 legge 0.14–0.20, perché lo strato è 0–7 cm invece di 3–9 cm.
 
 **Il gate `moisture_floor` resta ACCESO, contro l'intuizione.** Lo scarto qui sopra
 faceva temere che un pavimento tarato su ICON non fosse trasportabile su ERA5, e il
-primo disegno lo spegneva. Misurato sul finferlo (255 presenze, 3060 giorni di
-background), a parità di tutto il resto:
+primo disegno lo spegneva. Misurato sul finferlo a parità di tutto il resto,
+sullo stesso insieme di 255 presenze e 3060 giorni di background (un confronto fra
+trattamenti vale solo a n uguale):
 
     gate spento                        Boyce +0.096   mediana pres 0.974  bg 0.827
     gate assoluto (floor ICON su ERA5) Boyce +0.488   mediana pres 0.925  bg 0.726
     gate relativo al p82 della cella   Boyce +0.119   mediana pres 0.160  bg 0.027
 
 Col gate spento la readiness **satura** — quasi tutti i giorni valgono quasi uno — e
-nessuna metrica puo' ordinarli. Acceso, il Boyce sale a +0.49, dello stesso ordine del
-Boyce statico della stessa specie (+0.65): **il grosso del segnale temporale sta nel gate
-dell'umidita'**. Lo scarto fra le due sorgenti gioca a favore per caso — ERA5 e' piu'
+nessuna metrica puo' ordinarli. Acceso, il Boyce sale a +0.49: **il grosso del segnale
+temporale sta nel gate dell'umidita'**. Con l'archivio completo (quattro anni che il primo
+tentativo aveva perso sul rate limit) la corsa piena del finferlo da' **+0.617 su 352
+presenze e 4224 giorni di background**, dello stesso ordine del suo Boyce statico (+0.65).
+Il +0.49 della tabella non va citato da solo: e' il valore del sottoinsieme che serviva a
+tenere il confronto onesto. Lo scarto fra le due sorgenti gioca a favore per caso — ERA5 e' piu'
 umido in mediana (0.315 contro 0.204), quindi lo stesso 0.25 vi cade a un percentile piu'
 basso e veta meno — e questo va saputo prima di concludere che il numero e' trasferibile
 alla produzione, dove gira ICON.

@@ -32,7 +32,9 @@ gis/          layer + pipeline:
                 providers.py   AOI(area con dati tematici) · DEM(+drenaggio) · Forest(CFI2020 VE+TN+BZ) ·
                                WorldCover(gate a pesi sulle 10 classi + edge_density) ·
                                Geology(soil_ph) · Canopy(chioma viva)
-                occurrences.py (GBIF) · boyce.py · validate.py          validazione
+                occurrences.py (GBIF, con le date) · boyce.py            presenze + metrica
+                validate.py                                              valida il DOVE (Boyce spaziale)
+                validate_dynamic.py                                      valida il QUANDO (Boyce temporale)
                 grid.py · make_map.py                                    mappa statica (200 m)
                 meteo.py · fetch_meteo.py · predict_today.py             asse dinamico + top_spots
                 replay.py                                                falsificazione dell'asse dinamico
@@ -41,8 +43,8 @@ bot/          persistenza osservazioni (SQLite, §6.1). Nome storico: la cattura
 webapp/       web app FastAPI + Leaflet: auth · admin (utenti · editor profili + rigenerazione ·
                 doc) · mappa (idoneità statica/dinamica/ritrovamenti · trova-spot · mobile) ·
                 /log (cattura) · /me (scheda: casa, password, storico modificabile)
-tests/        40 test (motore · provider · gate a pesi · pavimento host · bordo · TPI ·
-                AOI · intorno · account · osservazioni)
+tests/        57 test (motore · provider · gate a pesi · pavimento host · bordo · TPI ·
+                AOI · intorno · account · osservazioni · inneschi multipli e carica ancorata)
 Dockerfile · docker-compose.yml · DEPLOY.md
 ```
 
@@ -74,6 +76,14 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   celle-giorno contro il 4.9% di celle dichiarate pronte. **Nessun conteggio di «celle
   pronte» anteriore al 18 set 2026 è confrontabile con uno successivo**, e le soglie sono
   ancora quelle tarate sul modello vecchio. Dettaglio in `docs/COME-FUNZIONA.md`.
+- **Validazione del QUANDO (nuovo, 18 set 2026):** `gis/validate_dynamic.py` — Boyce
+  temporale con il background disegnato come **stessa cella in date diverse**, che è
+  l'unico modo di non rimisurare l'asse spaziale. Presenze GBIF datate (3.105 su 3.234:
+  le date c'erano e non le prendevamo) e meteo storico ERA5, perché ICON-D2 esiste solo in
+  avanti. **Finferlo +0.617**, dello stesso ordine del suo Boyce statico. Girato solo su
+  quella specie: le altre aspettano quota fresca dell'archivio Open-Meteo, che è la stessa
+  del poller. Col gate dell'umidità spento crolla a +0.096 e la readiness **satura**, il
+  che sposta il primo lavoro dell'asse dinamico dalle soglie di carica al `moisture_floor`.
 - **Interfaccia:** web app — mappa topo con **idoneità statica** (fucsia), **idoneità dinamica**
   (quadrati per fase), **ritrovamenti**, **confini area dati** (BZ+TN+VE, spiega dove si ferma
   l'idoneità), e **"trova spot migliori"** (top-50 per specie: statica /
@@ -87,9 +97,13 @@ Dockerfile · docker-compose.yml · DEPLOY.md
   scora esattamente 0 (host noto e incompatibile, oppure `forest_fraction` = 0 su un punto
   con coordinate imprecise). Prima di dare la colpa ai pesi, separare le due cause e valutare
   se sia host o gate — l'intorno in validazione è ora il default e ha già mostrato che
-  buona parte di quegli zeri era imprecisione delle coordinate. **La carica va valutata alla data dell'innesco, non a oggi**: oggi le due cose
-  guardano tempi diversi e si escludono a vicenda (`docs/COME-FUNZIONA.md`), ed è il
-  difetto strutturale dell'asse dinamico. Poi: **notifiche** al trigger di readiness — era il
+  buona parte di quegli zeri era imprecisione delle coordinate. **Il `moisture_floor`**, che
+  il metro temporale ha promosso da difetto noto a nodo centrale: è **inerte** nel 60.4%
+  delle celle per il porcino ed è insieme il principale portatore di segnale temporale
+  (spegnerlo porta il Boyce del finferlo da +0.62 a +0.10). Renderlo relativo alla storia
+  della cella resta la cura, ma al percentile provato è troppo severo: il percentile giusto
+  adesso si cerca con una metrica. E **ritarare le soglie di carica** sul modello
+  multi-innesco, che è però un lavoro secondario rispetto al precedente. Poi: **notifiche** al trigger di readiness — era il
   canale di consegna dell'active learning e con l'uscita del bot resta scoperto: servirà
   un mittente Telegram in sola uscita, oppure web push; learner (v4); **CORINE Land Cover** (sottotipi di prato/pascolo) + cablaggio hook
   `extra_static_layers`; saprotrofi del legno (chiodini, canopy invertito); profili di specie di

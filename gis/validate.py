@@ -7,6 +7,10 @@ valori si confrontano solo a parità di background, di layer attivi e di colonna
 
     python -m gis.validate            # pixel E intorno 250 m affiancati, piu' il divario
     python -m gis.validate --pixel    # solo il pixel esatto (piu' veloce, numeri storici)
+
+Valida il DOVE. Per il QUANDO c'e' la controparte temporale in
+`gis/validate_dynamic.py`, che usa lo stesso Boyce ma con un background
+fatto di date invece che di posti.
 """
 
 from __future__ import annotations
