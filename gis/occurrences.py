@@ -42,8 +42,30 @@ def _bbox_wkt(bb: dict) -> str:
     return (f"POLYGON(({lo} {la}, {Lo} {la}, {Lo} {La}, {lo} {La}, {lo} {la}))")
 
 
+def _event_date(r: dict) -> str | None:
+    """Data ISO dell'evento. `eventDate` di GBIF puo' essere un intervallo ("a/b") o
+    portarsi dietro l'ora; un record puo' anche avere solo year/month/day sciolti. Una
+    data incerta oltre il giorno non serve a niente qui, quindi o esce YYYY-MM-DD o None.
+    """
+    ed = r.get("eventDate")
+    if isinstance(ed, str) and ed:
+        head = ed.split("/")[0].split("T")[0]
+        if len(head) == 10 and head[4] == "-" and head[7] == "-":
+            return head
+    y, m, d = r.get("year"), r.get("month"), r.get("day")
+    if y and m and d:
+        return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+    return None
+
+
 def fetch_occurrences(name: str, bbox: dict, max_records: int = 1000) -> list[dict]:
-    """Occorrenze georiferite di `name` dentro il bbox. Ritorna [{lat,lon,year,key}]."""
+    """Occorrenze georiferite di `name` dentro il bbox. Ritorna [{lat,lon,date,year,key}].
+
+    `date` e' la data completa dell'evento (ISO, o None). Serve a validare l'asse
+    DINAMICO, che finora non ha mai avuto un metro: il Boyce di `gis.validate` misura
+    l'idoneita' spaziale e non sa dire se il modello indovina il *quando*. Fino al 18 set
+    2026 qui si teneva solo `year`, e GBIF la data ce l'ha: non era un limite della fonte.
+    """
     key = taxon_key(name)
     if key is None:
         return []
@@ -60,7 +82,7 @@ def fetch_occurrences(name: str, bbox: dict, max_records: int = 1000) -> list[di
             if r.get("decimalLatitude") is None:
                 continue
             out.append({"lat": r["decimalLatitude"], "lon": r["decimalLongitude"],
-                        "year": r.get("year"), "key": r.get("key")})
+                        "date": _event_date(r), "year": r.get("year"), "key": r.get("key")})
         if data.get("endOfRecords") or not data.get("results"):
             break
         offset += page
@@ -74,7 +96,8 @@ def to_geojson(species_points: dict[str, list[dict]]) -> dict:
             feats.append({
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]},
-                "properties": {"species": sid, "year": p.get("year"), "gbif": p.get("key")},
+                "properties": {"species": sid, "date": p.get("date"),
+                               "year": p.get("year"), "gbif": p.get("key")},
             })
     return {"type": "FeatureCollection", "features": feats}
 
@@ -96,7 +119,8 @@ if __name__ == "__main__":
         all_points[sid] = pts
         yrs = [p["year"] for p in pts if p.get("year")]
         span = f"{min(yrs)}–{max(yrs)}" if yrs else "n/d"
-        print(f"  {sid:24s} {len(pts):5d} punti   anni {span}")
+        n_dat = sum(1 for p in pts if p.get("date"))
+        print(f"  {sid:24s} {len(pts):5d} punti   anni {span}   con data {n_dat}")
     out = Path(__file__).resolve().parent.parent / "data" / "gbif_occurrences.geojson"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(to_geojson(all_points)), encoding="utf-8")
