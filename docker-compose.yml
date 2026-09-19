@@ -21,11 +21,13 @@ x-pilze: &pilze
 
 services:
   web:
+    container_name: pilze
     <<: *pilze
     ports:
       - "127.0.0.1:8790:8000"    # porta host 8790 (registro porte borant) → Caddy
 
   poller:
+    container_name: pilze-poller
     <<: *pilze
     # ICON-D2 archivia in avanti (§9): fetch giornaliero + ricalcolo "pronte oggi".
     # Specie non elencate: fetch_meteo/predict_today le enumerano dalle mappe presenti
